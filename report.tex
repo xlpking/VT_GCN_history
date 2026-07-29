@@ -1,0 +1,156 @@
+\documentclass[11pt,a4paper]{ctexart}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+\hypersetup{colorlinks=true, linkcolor=blue!70!black, urlcolor=blue!70!black, citecolor=blue!70!black}
+
+\title{\textbf{SVOM/VT GCN 观测统计与技术报告} \\ \large 基于 GCN Circulars 的自动化数据归档与分析系统}
+\author{VT GCN History Project}
+\date{2026 年 7 月}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本报告系统总结了 SVOM 卫星可见光望远镜（VT）自 2024 年 8 月以来在 Gamma-ray Coordinates Network (GCN) 上发布的全部观测通告（Circulars）。我们构建了一套自动化数据抓取、解析与可视化的 Web 系统，对 260 篇 VT 相关 GCN 进行了分类统计，涵盖触发源分布、观测响应延时、光学波段星等分布等关键指标。结果表明：SVOM/ECLAIRs 自触发的 VT 响应中位延时约为 0.74 小时，其中 60\% 在 1 小时内开始观测，体现了卫星平台自主快速 slew 的能力。
+\end{abstract}
+
+\section{引言}
+
+SVOM（Space Variable Objects Monitor）是中法联合空间天文卫星，搭载 ECLAIRs 软 X 射线监视器、GRM 伽马射线监视器、MXT 软 X 射线望远镜以及 VT 可见光望远镜。VT 工作在 400--650 nm（VT\_B）和 650--1000 nm（VT\_R）两个波段，用于对伽马射线暴（GRB）及其他瞬变天体的光学 counterparts 进行快速跟随观测。
+
+当 SVOM/ECLAIRs 在轨检测到 GRB 触发后，卫星平台可在数分钟内自动 slew 至爆发位置，VT 随即开始成像观测。此外，VT 还响应来自 Einstein Probe (EP)、Swift、Fermi 等外部卫星的 Target-of-Opportunity (ToO) 观测请求。
+
+本研究系统分析了 VT 在 GCN 上发布的全部观测通告，以量化评估其观测能力和科学产出。
+
+\section{数据来源与方法}
+
+\subsection{数据采集}
+
+我们开发了一套基于 Python 的自动化系统（VT GCN History），从 GCN 官方归档\footnote{\url{https://gcn.nasa.gov/circulars}}定期抓取所有 Circulars，并通过关键词匹配（``SVOM/VT''）筛选 VT 相关报告。系统支持全量初始化和增量更新两种模式，确保数据实时性。
+
+\subsection{信息提取}
+
+对每篇 VT GCN，系统自动解析以下关键字段：
+\begin{itemize}[nosep]
+    \item \textbf{触发源分类}：通过正则匹配 subject 和 body 区分 SVOM/ECLAIRs 自触发与外部 ToO（EP、Swift、Fermi 等）。
+    \item \item \textbf{观测延时}（$T - T_0$）：从报告中提取观测开始时间相对于触发时间 $T_0$ 的间隔。
+    \item \textbf{测光数据}：解析测光表格，提取 VT\_B 和 VT\_R 波段的星等值及对应的有效观测中点时间（mid-time）。
+    \item \textbf{detection vs.\ upper limit}：根据表头标识和上下文区分探测星等与极限星等。
+\end{itemize}
+
+\section{主要结果}
+
+\subsection{总体统计}
+
+截至 2026 年 7 月 27 日，系统共归档 \textbf{260 篇} VT 相关 GCN Circulars，时间跨度为 2024 年 8 月 23 日至 2026 年 7 月 27 日。表~\ref{tab:trigger} 给出了按触发源的分布统计。
+
+\begin{table}[H]
+\centering
+\caption{VT GCN 触发源分布}
+\label{tab:trigger}
+\begin{tabular}{lcc}
+\toprule
+\textbf{触发源} & \textbf{GCN 数量} & \textbf{占比} \\
+\midrule
+SVOM/ECLAIRs（自触发） & 129 & 49.6\% \\
+EP（ToO） & 76 & 29.2\% \\
+Swift/BAT（ToO） & 29 & 11.2\% \\
+Fermi/GBM（ToO） & 24 & 9.2\% \\
+INTEGRAL & 1 & 0.4\% \\
+LIGO/Virgo & 1 & 0.4\% \\
+\midrule
+\textbf{合计} & \textbf{260} & \textbf{100\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+可见，SVOM/ECLAIRs 自触发贡献了近半数 VT 观测报告，EP 卫星的 ToO 请求是第二大来源。
+
+\subsection{观测响应延时}
+
+观测延时 $T - T_0$ 是衡量快速响应能力的关键指标。表~\ref{tab:delay} 总结了各触发源的延时统计。
+
+\begin{table}[H]
+\centering
+\caption{各触发源的观测延时统计（小时）}
+\label{tab:delay}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{触发源} & \textbf{有延时数据} & \textbf{中位数} & \textbf{最小值} & \textbf{$\leq$1h} & \textbf{$\leq$6h} \\
+\midrule
+SVOM/ECLAIRs & 106 & 0.74 & 0.043 & 64 (60\%) & 81 (76\%) \\
+EP (ToO)     & 57  & 4.9  & 0.19  & ---       & ---       \\
+Swift (ToO)  & 21  & 4.3  & 0.48  & ---       & ---       \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{主要发现：}
+\begin{itemize}
+    \item SVOM/ECLAIRs 自触发场景下，VT 观测中位延时为 \textbf{0.74 小时}（约 44 分钟），最快响应仅 \textbf{2.6 分钟}（0.043h），体现了在轨自动 slew 的分钟级响应能力。
+    \item \textbf{60\%} 的自触发观测在爆发后 1 小时内开始，\textbf{76\%} 在 6 小时内开始。
+    \item EP 和 Swift 的 ToO 观测中位延时分别为 4.9h 和 4.3h，反映了地面指令上传和观测计划调度的时间尺度。
+\end{itemize}
+
+\subsection{光学星等分布}
+
+VT 的双波段测光能力允许对 GRB 光学 afterglow 的颜色演化进行研究。表~\ref{tab:mag} 给出了各触发源/波段的星等统计。
+
+\begin{table}[H]
+\centering
+\caption{VT 光学星等统计（detection）}
+\label{tab:mag}
+\begin{tabular}{llcccc}
+\toprule
+\textbf{触发源} & \textbf{波段} & \textbf{探测数} & \textbf{中位数} & \textbf{范围} & \textbf{上限数} \\
+\midrule
+\multirow{2}{*}{SVOM} & VT\_B & 54 & 20.8 & 14.9--23.6 & 26 \\
+                      & VT\_R & 65 & 21.1 & 14.5--23.5 & 28 \\
+\multirow{2}{*}{EP}   & VT\_B & 49 & 22.1 & 17.0--23.6 & 21 \\
+                      & VT\_R & 51 & 21.2 & 16.3--23.2 & 19 \\
+\multirow{2}{*}{Swift}& VT\_B & 15 & 21.1 & 19.9--23.7 & 5  \\
+                      & VT\_R & 18 & 21.6 & 19.0--23.2 & 4  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{主要发现：}
+\begin{itemize}
+    \item SVOM 自触发探测的 VT\_R 中位星等为 \textbf{21.1 mag}，与 VT 望远镜的典型探测深度一致。
+    \item VT\_R 波段探测数（65）略多于 VT\_B（54），反映 R 波段在红端（650--1000 nm）对 GRB afterglow 有更高的探测率。
+    \item EP 触发的源在 VT\_B 波段中位星等偏暗（22.1 mag），可能与 EP 检测到的源平均距离更远或观测延时更长有关。
+    \item 极限星等（upper limit）通常在 23--24 mag 量级，对应 VT 单次或叠加成像的典型深度。
+\end{itemize}
+
+\subsection{波段覆盖}
+
+在 260 篇 GCN 中，VT\_R 波段出现 167 次，VT\_B 出现 159 次，绝大多数报告同时在双波段进行观测。这体现了 VT 双通道同时成像的设计优势，可直接获得光学颜色信息。
+
+\section{结论与展望}
+
+通过对 260 篇 SVOM/VT GCN Circulars 的系统分析，我们得到以下主要结论：
+
+\begin{enumerate}
+    \item SVOM/ECLAIRs 自触发场景下 VT 具有分钟级快速响应能力，中位延时 0.74h，60\% 在 1h 内开始观测。
+    \item VT 双波段测光典型探测深度约为 21 mag（AB），极限星等可达 23--24 mag。
+    \item VT\_R 波段探测率略高于 VT\_B，与 GRB afterglow 的红端能谱特征一致。
+    \item 外部 ToO 观测（EP、Swift）是 VT 科学产出的重要补充，占比超过 40\%。
+\end{enumerate}
+
+未来工作将包括：(1) 结合多波段数据进行 afterglow 光变拟合；(2) 扩展数据源至其他望远镜的观测报告；(3) 开发实时 GRB 警报推送功能。
+
+\vspace{1em}
+\noindent\textbf{数据访问：} 完整数据和交互式可视化可通过 Web 界面访问：\url{http://127.0.0.1:5050/}
+
+\end{document}
