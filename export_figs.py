@@ -71,14 +71,17 @@ print("Saved trigger_bar.png")
 # ===== 图2b: 报告类型分布饼图 =====
 type_map = {'detection': '光学证认', 'upper_limit': '上限', 'stellar_flare': '恒星耀发', 'clarification': '澄清', 'other': '其他'}
 type_counts = Counter(r.get('report_type','other') for r in recs)
-tl = [type_map.get(k,k) for k in type_counts if type_counts[k]>0]
-tv = [type_counts[k] for k in type_counts if type_counts[k]>0]
+type_order = ['detection', 'upper_limit', 'stellar_flare', 'clarification', 'other']
+tl = [type_map.get(k,k) for k in type_order if type_counts.get(k,0) > 0]
+tv = [type_counts[k] for k in type_order if type_counts.get(k,0) > 0]
 tc = ['#4ade80','#f87171','#f59e0b','#60a5fa','#94a3b8'][:len(tv)]
 
 fig, ax = plt.subplots(figsize=(6, 4))
-wedges, texts, autotexts = ax.pie(tv, labels=tl, colors=tc, autopct='%1.1f%%',
-    startangle=90, pctdistance=0.75, wedgeprops=dict(width=0.45))
-for at in autotexts: at.set_fontsize(9)
+# 用图例代替外部标签，避免重叠
+wedges, _, autotexts = ax.pie(tv, colors=tc, autopct=lambda p: f'{p:.1f}%\n({int(round(p*sum(tv)/100))})',
+    startangle=90, pctdistance=0.72, wedgeprops=dict(width=0.45),
+    textprops=dict(fontsize=8))
+ax.legend(wedges, [f'{l} ({v})' for l,v in zip(tl,tv)], loc='center left', bbox_to_anchor=(0.92, 0.5), fontsize=10)
 ax.set_title('报告类型分布', fontsize=13)
 plt.tight_layout()
 plt.savefig(os.path.join(OUT_DIR, "type_pie.png"), dpi=150)
