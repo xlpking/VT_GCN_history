@@ -143,7 +143,8 @@ INDEX_TEMPLATE = """<!doctype html>
     <div class="stat"><div class="num">{{ stats.total }}</div><div class="lbl">VT 报告总数 Total</div></div>
     <div class="stat green"><div class="num">{{ stats.detection_count }}</div><div class="lbl">探测 Detections</div></div>
     <div class="stat red"><div class="num">{{ stats.upper_limit_count }}</div><div class="lbl">上限 Upper Limits</div></div>
-    <div class="stat green"><div class="num">{{ '%.1f'|format((stats.detection_rate or 0)*100) }}%</div><div class="lbl">探测率 Det. Rate</div></div>
+    <div class="stat green"><div class="num">{{ '%.1f'|format((stats.detection_rate or 0)*100) }}%</div><div class="lbl">光学证认率 Det. Rate</div></div>
+    <div class="stat green"><div class="num">{{ '%.1f'|format((stats.auto_followup_rate or 0)*100) }}%</div><div class="lbl">自动后随证认率 Auto Rate</div></div>
     <div class="stat"><div class="num">{{ stats.events_count }}</div><div class="lbl">涉及事件数 Events</div></div>
     <div class="stat"><div class="num">{{ '%.2f'|format(stats.median_delay_hr) if stats.median_delay_hr is not none else '—' }}</div><div class="lbl">首光中位延时 P50 (hr)</div></div>
     <div class="stat green"><div class="num">{{ '%.0f'|format((stats.frac_within_2h or 0)*100) }}%</div><div class="lbl">≤2h 早期响应占比</div></div>

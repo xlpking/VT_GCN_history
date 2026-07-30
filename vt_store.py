@@ -254,6 +254,26 @@ class VTStore:
             if n == 0:
                 return None
             return sum(1 for d in delay_hours_sorted if d <= thr) / n
+
+        # 自动后随证认率 (SVOM≤1h, EP/Swift≤2h)
+        af_det, af_ul = 0, 0
+        for r in records:
+            d = r.get("trigger_to_obs_hr")
+            if not isinstance(d, (int, float)) or d <= 0:
+                continue
+            rt = r.get("report_type", "")
+            if rt not in ("detection", "upper_limit"):
+                continue
+            src = r.get("trigger_source", "") or ""
+            thr = 1.0 if src.startswith("SVOM") else 2.0
+            if d > thr:
+                continue
+            if rt == "detection":
+                af_det += 1
+            else:
+                af_ul += 1
+        auto_rate = af_det / (af_det + af_ul) if (af_det + af_ul) > 0 else 0
+
         return {
             "total": total,
             "by_type": by_type,
@@ -268,6 +288,7 @@ class VTStore:
             "clarification_count": by_type.get("clarification", 0),
             "detection_rate": (by_type.get("detection", 0) / (by_type.get("detection", 0) + by_type.get("upper_limit", 0)))
                 if (by_type.get("detection", 0) + by_type.get("upper_limit", 0)) > 0 else 0,
+            "auto_followup_rate": auto_rate,
             "events_count": len(by_event),
             "median_delay_hr": delay_hours_sorted[n // 2] if n else None,
             "min_delay_hr": delay_hours_sorted[0] if n else None,
