@@ -120,9 +120,9 @@ for r in recs:
     ident = diff_h - X_BAND
     if ident < -6: continue
     src = r.get('trigger_source','')
-    d = obs_dt.strftime('%Y-%m-%d')
-    if src.startswith('SVOM'): svom_x.append(d); svom_y.append(ident)
-    else: oth_x.append(d); oth_y.append(ident)
+    # 用 datetime 对象，不能用字符串
+    if src.startswith('SVOM'): svom_x.append(obs_dt); svom_y.append(ident)
+    else: oth_x.append(obs_dt); oth_y.append(ident)
 
 fig, ax = plt.subplots(figsize=(10, 3.8))
 ax.scatter(oth_x, oth_y, c='#3b82f6', s=30, alpha=0.6, label='外部卫星', edgecolors='none')
@@ -133,14 +133,10 @@ ax.set_title('证认时间消耗趋势（≤24h内发布）', fontsize=13)
 ax.legend(fontsize=9, loc='upper right')
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
-# 稀疏x轴标签
+# datetime 对象 + mdates 格式化
 ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
 plt.setp(ax.get_xticklabels(), rotation=45, ha='right', fontsize=8)
-# 转换日期字符串为日期对象
-import matplotlib.dates as mdates2
-for collection, xs in [(ax.collections[0], oth_x), (ax.collections[1], svom_x)]:
-    pass  # scatter已经用字符串，matplotlib自动处理
 plt.tight_layout()
 plt.savefig(os.path.join(OUT_DIR, "ident_scatter.png"), dpi=150)
 plt.close()
