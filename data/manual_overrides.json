@@ -188,5 +188,20 @@
     "trigger_source": "SVOM/ECLAIRs",
     "note": "",
     "updated_at": "2026-07-29T04:49:20.103799+00:00"
+  },
+  "41144": {
+    "bands": [
+      "VT_R"
+    ],
+    "magnitudes": [
+      {
+        "band": "VT_R",
+        "value": 22.2,
+        "unit": "mag",
+        "is_limit": false
+      }
+    ],
+    "note": "GCN 41144 早期报告写作不规范，实际指 VT_R 波段",
+    "updated_at": "2026-07-30T10:10:00+00:00"
   }
 }

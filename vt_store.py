@@ -51,8 +51,24 @@ class VTStore:
             log.info("Loaded %d VT records (max id=%s)", len(self._records), self._meta.get("max_circular_id"))
         except Exception as exc:
             log.error("Failed to load store: %s", exc)
+        # 加载时重新解析（确保 parser 改进生效）
+        self._reparse_all()
         # 应用人工分类覆盖（每次加载都重新应用，确保继承）
         self._apply_manual_overrides()
+
+    def _reparse_all(self) -> None:
+        """用最新 parser 重新 enrich 所有记录（保留 body 等原始字段）。"""
+        with self._lock:
+            items = list(self._records.items())
+        n = 0
+        for cid, raw in items:
+            enriched = enrich(dict(raw))
+            if enriched is not None:
+                with self._lock:
+                    self._records[cid] = enriched
+                n += 1
+        if n:
+            log.info("Re-parsed %d records with latest parser", n)
 
     def _apply_manual_overrides(self) -> None:
         """加载并应用 data/manual_overrides.json 中的人工分类。"""

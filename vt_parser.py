@@ -39,13 +39,15 @@ RE_POST_TRIGGER_RANGE = re.compile(
     re.IGNORECASE,
 )
 RE_OBS_START = re.compile(
-    r"(observations?\s+(?:started|began|begin|start(?:ed)?)\s+(?:at\s+)?|observing\s+(?:started|began)\s+(?:at\s+)?|started\s+(?:at\s+)?on\s+)"
-    r"(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?)\s*UTC",
+    r"(?:began\s+observ\w+|start(?:ed|ing)?\s+observ\w+|observ\w+\s+(?:started|began|start(?:ed)?)|"
+    r"(?:vhf\s+)?data\s+start(?:ed)?\s+at|start(?:ed|ing)?\s+at|since|from)"
+    r"[\w\s,()\d.#/+;-]{0,40}?\s*"
+    r"(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?)\s*UT",
     re.IGNORECASE,
 )
 RE_TRIGGER_TIME = re.compile(
-    r"(trigger\s+(?:time\s+)?(?:at\s+)?|triggered\s+(?:at\s+)?|burst\s+(?:time|at)\s+(?:at\s+)?|T0\s*[:=]\s*)"
-    r"(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?)\s*UTC",
+    r"(trigger\s+(?:time\s+)?(?:at\s+)?|triggered\s+(?:at\s+)?|trigger\s+by\s+[\w/\s]+?\s+at\s+|burst\s+(?:time\s+)?(?:at\s+)?|T0\s*[:=]\s*)"
+    r"(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?)\s*UT",
     re.IGNORECASE,
 )
 
@@ -370,7 +372,7 @@ def extract_bands_and_mags(subject: str, body: str) -> tuple[List[str], List[dic
         r"\s*mag)?"
         , re.IGNORECASE,
     )
-    limit_line = re.compile(r"(?:>\s*|limit(?:ed)?\s+to\s+|upper\s+limit(?:s)?\s*(?:of|[:=])?\s*)([\d.]+)\s*mag", re.IGNORECASE)
+    limit_line = re.compile(r"(?:>\s*|limit(?:ed)?\s+to\s+|upper\s+limit(?:s)?\s*(?:of|[:=])?\s*(?:are\s+)?(?:about\s+|~\s*)?)([\d.]+)\s*mag", re.IGNORECASE)
     vhf_line = re.compile(r"VHF.*?([\d.]+)\s*mag", re.IGNORECASE)
     measure_line = re.compile(r"(?<![<>=\d.])([\d]{1,2}(?:\.[\d]{1,3})?)\s*(?:\+/?-|±)\s*[\d.]+\s*mag\b", re.IGNORECASE)
 
@@ -476,28 +478,41 @@ def extract_bands_and_mags(subject: str, body: str) -> tuple[List[str], List[dic
                         entry["t_mid_hr"] = t_mid_hr
                     mags.append(entry)
                 continue
-        # 2) VHF — 仅匹配 "VHF ... XX mag" 且 XX 在合理星等范围（14~25）
-        if "VHF" in ln.upper():
-            mv = vhf_line.search(ln)
-            if mv:
+        # 1.5) 范围格式: "from X mag to Y mag for VT_B" (取首值作为星等)
+        range_line = re.compile(r"from\s+([\d.]+)\s*mag\s+to\s+([\d.]+)\s*mag\s+for\s+VT[_\s-]?([BR])", re.IGNORECASE)
+        rms = list(range_line.finditer(ln))
+        if rms:
+            for rm in rms:
+                band = f"VT_{rm.group(3).upper()}"
+                if band not in bands:
+                    bands.append(band)
                 try:
-                    vhf_val = float(mv.group(1))
-                    if 14 <= vhf_val <= 25:  # 合理星等范围
-                        if "VHF" not in bands:
-                            bands.append("VHF")
-                        entry = {"band": "VHF", "value": vhf_val, "unit": "mag",
-                                 "is_limit": ">" in ln or "limit" in ln.lower()}
-                        if t_mid_hr is not None:
-                            entry["t_mid_hr"] = t_mid_hr
-                        mags.append(entry)
+                    entry = {"band": band, "value": float(rm.group(1)), "unit": "mag", "is_limit": False}
+                    if t_mid_hr is not None:
+                        entry["t_mid_hr"] = t_mid_hr
+                    mags.append(entry)
                 except ValueError:
                     pass
             continue
+        # 2) VHF 只是数据下传方式，不是独立波段；不跳过行，继续解析 VT_B/VT_R
         # 3) 纯上限行（不含 VT 前缀）
         if any(k in ln.lower() for k in ("upper limit", "limit", ">")):
             ml = limit_line.search(ln)
             if ml:
                 bv = re.search(r"vt[_\s-]?(?:b|r|white|clear)", ln, re.IGNORECASE)
+                # "in both channels" → 同时属于 VT_B 和 VT_R
+                if not bv and re.search(r"both\s+channels?", ln, re.IGNORECASE):
+                    for band in ("VT_B", "VT_R"):
+                        if band not in bands:
+                            bands.append(band)
+                        try:
+                            entry = {"band": band, "value": float(ml.group(1)), "unit": "mag", "is_limit": True}
+                            if t_mid_hr is not None:
+                                entry["t_mid_hr"] = t_mid_hr
+                            mags.append(entry)
+                        except ValueError:
+                            pass
+                    continue
                 band = _norm_band(bv.group(0)) if bv else "unknown"
                 if band not in bands:
                     bands.append(band)
@@ -561,7 +576,7 @@ def _to_hours(value: float, unit: str) -> float:
 def extract_obs_start(body: str) -> Optional[str]:
     m = RE_OBS_START.search(body or "")
     if m:
-        return m.group(2).replace(" ", "T")
+        return m.group(1).replace(" ", "T")
     return None
 
 

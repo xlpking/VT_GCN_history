@@ -161,8 +161,9 @@ INDEX_TEMPLATE = """<!doctype html>
     <div class="chart-card">{{ charts.band_bar|safe }}</div>
     {{ charts.delay_hist|safe }}
     {{ charts.mag_vs_delay|safe }}
+    {{ charts.obs_vs_publish|safe }}
+    {{ charts.ident_time|safe }}
     <div class="chart-card full">{{ charts.monthly_bar|safe }}</div>
-    <div class="chart-card full">{{ charts.timeline|safe }}</div>
   </div>
 
   <h3 style="margin-top:30px;margin-bottom:10px">VT 报告列表（共 {{ total }} 条，显示 {{ records|length }} 条）</h3>

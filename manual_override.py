@@ -77,7 +77,12 @@ def apply_overrides(records: dict) -> int:
         cid = str(rec.get("circularId", key))
         if cid in overrides:
             ov = overrides[cid]
-            rec["trigger_source"] = ov["trigger_source"]
+            if "trigger_source" in ov:
+                rec["trigger_source"] = ov["trigger_source"]
+            if "bands" in ov:
+                rec["bands"] = ov["bands"]
+            if "magnitudes" in ov:
+                rec["magnitudes"] = ov["magnitudes"]
             rec["manual_override"] = True
             count += 1
     return count

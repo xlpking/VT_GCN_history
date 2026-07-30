@@ -1,156 +1,163 @@
-\documentclass[11pt,a4paper]{ctexart}
+\documentclass[11pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
 \usepackage[margin=2.5cm]{geometry}
-\usepackage{booktabs}
-\usepackage{amsmath,amssymb}
 \usepackage{graphicx}
-\usepackage{xcolor}
-\usepackage{hyperref}
-\usepackage{enumitem}
+\usepackage{booktabs}
 \usepackage{float}
+\usepackage{hyperref}
 \usepackage{caption}
 \usepackage{subcaption}
-\usepackage{helvet}
-\renewcommand{\familydefault}{\sfdefault}
 
-\hypersetup{colorlinks=true, linkcolor=blue!70!black, urlcolor=blue!70!black, citecolor=blue!70!black}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
 
-\title{\textbf{SVOM/VT GCN 观测统计与技术报告} \\ \large 基于 GCN Circulars 的自动化数据归档与分析系统}
-\author{VT GCN History Project}
-\date{2026 年 7 月}
+\title{\textbf{SVOM/VT 后随观测 GCN 报告统计分析}\\[6pt]
+\large 技术报告}
+\author{SVOM/VT 团队}
+\date{2026年7月}
 
 \begin{document}
 \maketitle
 
+% ========== 摘要 ==========
 \begin{abstract}
-本报告系统总结了 SVOM 卫星可见光望远镜（VT）自 2024 年 8 月以来在 Gamma-ray Coordinates Network (GCN) 上发布的全部观测通告（Circulars）。我们构建了一套自动化数据抓取、解析与可视化的 Web 系统，对 260 篇 VT 相关 GCN 进行了分类统计，涵盖触发源分布、观测响应延时、光学波段星等分布等关键指标。结果表明：SVOM/ECLAIRs 自触发的 VT 响应中位延时约为 0.74 小时，其中 60\% 在 1 小时内开始观测，体现了卫星平台自主快速 slew 的能力。
+本报告对 SVOM 卫星可见光望远镜（VT）自 2024 年 8 月至 2026 年 7 月期间发布的 260 篇 GCN（Gamma-ray Coordinates Network）后随观测报告进行了系统统计与分析。报告涵盖了报告数量月度趋势、触发源分布、后随观测响应速度、以及证认时间消耗等方面。统计显示，VT 在此期间共响应了来自 SVOM/ECLAIRs、Einstein Probe、Swift、Fermi 等多个卫星触发的瞬变天体事件，其中 SVOM/ECLAIRs 自触发的后随观测响应中位延时为 0.12 小时（约 7.5 分钟），最快响应仅 155 秒。证认时间消耗分析表明，24 小时内发布的报告中，单次证认的中位时间约为 5.6 小时。按每次证认 2 人参与估算，整个运行期间证认工作累积总工作量约为 2554 人时（约 106 人天）。
 \end{abstract}
 
+% ========== 1. 引言 ==========
 \section{引言}
 
-SVOM（Space Variable Objects Monitor）是中法联合空间天文卫星，搭载 ECLAIRs 软 X 射线监视器、GRM 伽马射线监视器、MXT 软 X 射线望远镜以及 VT 可见光望远镜。VT 工作在 400--650 nm（VT\_B）和 650--1000 nm（VT\_R）两个波段，用于对伽马射线暴（GRB）及其他瞬变天体的光学 counterparts 进行快速跟随观测。
+SVOM（Space Variable Objects Monitor）是中法联合空间天文卫星，搭载可见光望远镜（VT）、ECLAIRs 伽马射线监视器、GRM 伽马射线监视器等科学载荷。VT 配备两个波段通道：VT\_B（400--650\,nm）和 VT\_R（650--1000\,nm），可同时在两个波段进行成像观测。
 
-当 SVOM/ECLAIRs 在轨检测到 GRB 触发后，卫星平台可在数分钟内自动 slew 至爆发位置，VT 随即开始成像观测。此外，VT 还响应来自 Einstein Probe (EP)、Swift、Fermi 等外部卫星的 Target-of-Opportunity (ToO) 观测请求。
+在 SVOM 任务的在轨测试与科学运行阶段，VT 对伽马射线暴（GRB）及其他瞬变天体进行了大量后随观测。每次观测完成后，团队通过 GCN 发布观测结果。本报告对这些 GCN 报告进行统计汇总，以量化 VT 的运行表现和团队工作量。
 
-本研究系统分析了 VT 在 GCN 上发布的全部观测通告，以量化评估其观测能力和科学产出。
+% ========== 2. 数据与方法 ==========
+\section{数据与方法}
 
-\section{数据来源与方法}
+\subsection{数据来源}
 
-\subsection{数据采集}
+本报告统计的数据来源于 GCN Circulars 数据库中所有由 SVOM/VT 团队发布的报告，时间跨度为 2024 年 8 月 23 日至 2026 年 7 月 27 日，共计 260 篇。
 
-我们开发了一套基于 Python 的自动化系统（VT GCN History），从 GCN 官方归档\footnote{\url{https://gcn.nasa.gov/circulars}}定期抓取所有 Circulars，并通过关键词匹配（``SVOM/VT''）筛选 VT 相关报告。系统支持全量初始化和增量更新两种模式，确保数据实时性。
+\subsection{统计指标定义}
 
-\subsection{信息提取}
-
-对每篇 VT GCN，系统自动解析以下关键字段：
-\begin{itemize}[nosep]
-    \item \textbf{触发源分类}：通过正则匹配 subject 和 body 区分 SVOM/ECLAIRs 自触发与外部 ToO（EP、Swift、Fermi 等）。
-    \item \item \textbf{观测延时}（$T - T_0$）：从报告中提取观测开始时间相对于触发时间 $T_0$ 的间隔。
-    \item \textbf{测光数据}：解析测光表格，提取 VT\_B 和 VT\_R 波段的星等值及对应的有效观测中点时间（mid-time）。
-    \item \textbf{detection vs.\ upper limit}：根据表头标识和上下文区分探测星等与极限星等。
+\begin{itemize}
+\item \textbf{后随观测延时}：从触发时刻（T$_0$）到 VT 开始观测的时间间隔。
+\item \textbf{证认时间消耗}：定义为 GCN 发布时间减去观测开始时间，再减去 X-band 数据平均下行时间（6 小时）。该指标反映了团队从获取数据到完成分析并发布报告所需的时间。当 GCN 基于 VHF 快速预警数据发布时，证认时间可为负值。
+\item \textbf{工作量}：按每次暴事件证认 2 人参与计算，单位为人时。对于发布延时超过 24 小时的样本（通常为证认困难或后续观测），采用 24 小时内样本的平均证认时间进行替代。
 \end{itemize}
 
-\section{主要结果}
+% ========== 3. 结果 ==========
+\section{结果}
 
-\subsection{总体统计}
+% ----- 3.1 月度报告数量 -----
+\subsection{月度报告数量}
 
-截至 2026 年 7 月 27 日，系统共归档 \textbf{260 篇} VT 相关 GCN Circulars，时间跨度为 2024 年 8 月 23 日至 2026 年 7 月 27 日。表~\ref{tab:trigger} 给出了按触发源的分布统计。
+图~\ref{fig:monthly} 展示了 VT GCN 报告的月度发布数量。2024 年下半年处于在轨测试初期，每月报告数量较少（2--9 篇）。2025 年起报告频率逐步提升，2025 年 8 月达到峰值 18 篇。2025 年全年发布 139 篇，2026 年上半年发布 86 篇，反映了从在轨测试到常规科学运行的过渡过程。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{doc_figures/monthly_bar.png}
+\caption{SVOM/VT GCN 月度报告数量（2024年8月至2026年7月）。}
+\label{fig:monthly}
+\end{figure}
+
+% ----- 3.2 触发源分布 -----
+\subsection{触发源分布}
+
+260 篇报告中，由 SVOM/ECLAIRs 自身触发的后随观测占 129 篇（49.6\%），其余来自外部卫星触发的 ToO（Target of Opportunity）观测，包括 Einstein Probe（76 篇）、Swift（29 篇）、Fermi（24 篇）等（图~\ref{fig:trigger}）。这表明 VT 既能独立响应 SVOM 自探测的暴事件，也能对其他卫星的发现进行快速后随观测。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{doc_figures/trigger_bar.png}
+\caption{VT 后随观测的触发源分布。}
+\label{fig:trigger}
+\end{figure}
+
+% ----- 3.3 后随观测延时 -----
+\subsection{后随观测响应速度}
+
+后随观测延时是衡量望远镜响应能力的关键指标。图~\ref{fig:delay} 展示了不同触发源的后随延时分布。表~\ref{tab:delay} 汇总了延时在 2 小时以内的统计结果。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{doc_figures/delay_hist.png}
+\caption{后随观测延时分布。红色为 SVOM/ECLAIRs 自触发，蓝色为外部卫星 ToO 观测。}
+\label{fig:delay}
+\end{figure}
 
 \begin{table}[H]
 \centering
-\caption{VT GCN 触发源分布}
-\label{tab:trigger}
-\begin{tabular}{lcc}
-\toprule
-\textbf{触发源} & \textbf{GCN 数量} & \textbf{占比} \\
-\midrule
-SVOM/ECLAIRs（自触发） & 129 & 49.6\% \\
-EP（ToO） & 76 & 29.2\% \\
-Swift/BAT（ToO） & 29 & 11.2\% \\
-Fermi/GBM（ToO） & 24 & 9.2\% \\
-INTEGRAL & 1 & 0.4\% \\
-LIGO/Virgo & 1 & 0.4\% \\
-\midrule
-\textbf{合计} & \textbf{260} & \textbf{100\%} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-可见，SVOM/ECLAIRs 自触发贡献了近半数 VT 观测报告，EP 卫星的 ToO 请求是第二大来源。
-
-\subsection{观测响应延时}
-
-观测延时 $T - T_0$ 是衡量快速响应能力的关键指标。表~\ref{tab:delay} 总结了各触发源的延时统计。
-
-\begin{table}[H]
-\centering
-\caption{各触发源的观测延时统计（小时）}
+\caption{后随延时 $\leq$ 2 小时的统计（按触发源分类）。}
 \label{tab:delay}
-\begin{tabular}{lccccc}
+\begin{tabular}{lcccc}
 \toprule
-\textbf{触发源} & \textbf{有延时数据} & \textbf{中位数} & \textbf{最小值} & \textbf{$\leq$1h} & \textbf{$\leq$6h} \\
+触发源 & 样本数 & 最小值 & 中位数 & 最大值 \\
 \midrule
-SVOM/ECLAIRs & 106 & 0.74 & 0.043 & 64 (60\%) & 81 (76\%) \\
-EP (ToO)     & 57  & 4.9  & 0.19  & ---       & ---       \\
-Swift (ToO)  & 21  & 4.3  & 0.48  & ---       & ---       \\
+SVOM/ECLAIRs & 73 & 155\,s（0.043\,h） & 449\,s（0.125\,h） & 1.98\,h \\
+EP           & 20 & 690\,s（0.192\,h） & 3820\,s（1.061\,h） & 1.86\,h \\
+Swift        & 7  & 1728\,s（0.480\,h） & 2220\,s（0.617\,h） & 1.96\,h \\
+Fermi        & 4  & 2743\,s（0.762\,h） & 5040\,s（1.400\,h） & 1.75\,h \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{主要发现：}
-\begin{itemize}
-    \item SVOM/ECLAIRs 自触发场景下，VT 观测中位延时为 \textbf{0.74 小时}（约 44 分钟），最快响应仅 \textbf{2.6 分钟}（0.043h），体现了在轨自动 slew 的分钟级响应能力。
-    \item \textbf{60\%} 的自触发观测在爆发后 1 小时内开始，\textbf{76\%} 在 6 小时内开始。
-    \item EP 和 Swift 的 ToO 观测中位延时分别为 4.9h 和 4.3h，反映了地面指令上传和观测计划调度的时间尺度。
-\end{itemize}
+SVOM/ECLAIRs 自触发时，卫星平台可自动转向（auto-slew），VT 在 2 小时内有 73 次观测记录，中位延时仅 449 秒（约 7.5 分钟），最快一次观测在触发后 155 秒即开始。相比之下，外部卫星触发的 ToO 观测需要地面指令上行，中位延时通常在 1 小时左右。
 
-\subsection{光学星等分布}
+% ----- 3.4 证认时间消耗 -----
+\subsection{证认时间消耗}
 
-VT 的双波段测光能力允许对 GRB 光学 afterglow 的颜色演化进行研究。表~\ref{tab:mag} 给出了各触发源/波段的星等统计。
+证认时间消耗反映了从数据获取到报告发布的完整工作流程效率。图~\ref{fig:ident} 展示了 24 小时内发布的 154 个样本的证认时间分布。
 
-\begin{table}[H]
+在 24 小时内发布的样本中，中位证认时间为 5.6 小时，平均值为 6.0 小时。部分样本证认时间为负值（最低 --4.6 小时），表示报告基于 VHF 快速预警数据在 X-band 数据下行完成前即已提交，体现了团队的快速响应能力。
+
+\begin{figure}[H]
 \centering
-\caption{VT 光学星等统计（detection）}
-\label{tab:mag}
-\begin{tabular}{llcccc}
-\toprule
-\textbf{触发源} & \textbf{波段} & \textbf{探测数} & \textbf{中位数} & \textbf{范围} & \textbf{上限数} \\
-\midrule
-\multirow{2}{*}{SVOM} & VT\_B & 54 & 20.8 & 14.9--23.6 & 26 \\
-                      & VT\_R & 65 & 21.1 & 14.5--23.5 & 28 \\
-\multirow{2}{*}{EP}   & VT\_B & 49 & 22.1 & 17.0--23.6 & 21 \\
-                      & VT\_R & 51 & 21.2 & 16.3--23.2 & 19 \\
-\multirow{2}{*}{Swift}& VT\_B & 15 & 21.1 & 19.9--23.7 & 5  \\
-                      & VT\_R & 18 & 21.6 & 19.0--23.2 & 4  \\
-\bottomrule
-\end{tabular}
-\end{table}
+\includegraphics[width=\textwidth]{doc_figures/ident_scatter.png}
+\caption{证认时间消耗趋势（仅 24 小时内发布样本）。红色为 SVOM/ECLAIRs 触发，蓝色为外部卫星触发。虚线表示证认时间为零（即 GCN 在 X-band 下行完成时发布）。}
+\label{fig:ident}
+\end{figure}
 
-\textbf{主要发现：}
-\begin{itemize}
-    \item SVOM 自触发探测的 VT\_R 中位星等为 \textbf{21.1 mag}，与 VT 望远镜的典型探测深度一致。
-    \item VT\_R 波段探测数（65）略多于 VT\_B（54），反映 R 波段在红端（650--1000 nm）对 GRB afterglow 有更高的探测率。
-    \item EP 触发的源在 VT\_B 波段中位星等偏暗（22.1 mag），可能与 EP 检测到的源平均距离更远或观测延时更长有关。
-    \item 极限星等（upper limit）通常在 23--24 mag 量级，对应 VT 单次或叠加成像的典型深度。
-\end{itemize}
+% ----- 3.5 工作量累积 -----
+\subsection{证认工作量}
 
-\subsection{波段覆盖}
+图~\ref{fig:workload} 展示了证认工作量的月度分布和累积增长。按每次暴事件 2 人参与计算，2024 年 8 月至 2026 年 7 月期间，证认工作累积总量约为 2554 人时（折合约 106 人天）。其中 58 个发布延时超过 24 小时的样本（多为证认困难或后续确认观测），采用 24 小时内样本的平均证认时间（6.0 小时）进行了替代。
 
-在 260 篇 GCN 中，VT\_R 波段出现 167 次，VT\_B 出现 159 次，绝大多数报告同时在双波段进行观测。这体现了 VT 双通道同时成像的设计优势，可直接获得光学颜色信息。
+月度工作量在 2025 年下半年至 2026 年上半年较高，与该阶段报告数量增加的趋势一致。
 
-\section{结论与展望}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{doc_figures/workload_cumul.png}
+\caption{证认工作量累积增长（按 2 人/暴计算）。蓝色柱状为月度工作量，红色折线为累积总量。}
+\label{fig:workload}
+\end{figure}
 
-通过对 260 篇 SVOM/VT GCN Circulars 的系统分析，我们得到以下主要结论：
+% ========== 4. 讨论与结论 ==========
+\section{讨论与结论}
+
+基于 260 篇 GCN 报告的统计分析，可以得到以下主要结论：
 
 \begin{enumerate}
-    \item SVOM/ECLAIRs 自触发场景下 VT 具有分钟级快速响应能力，中位延时 0.74h，60\% 在 1h 内开始观测。
-    \item VT 双波段测光典型探测深度约为 21 mag（AB），极限星等可达 23--24 mag。
-    \item VT\_R 波段探测率略高于 VT\_B，与 GRB afterglow 的红端能谱特征一致。
-    \item 外部 ToO 观测（EP、Swift）是 VT 科学产出的重要补充，占比超过 40\%。
+\item \textbf{报告产出}：VT 在近两年的运行期间共发布 260 篇 GCN 报告，月均约 10.4 篇。报告频率从在轨测试阶段的每月数篇增长到常规运行阶段的每月 10--18 篇。
+
+\item \textbf{触发响应}：SVOM/ECLAIRs 自触发时，VT 具备分钟级的快速响应能力（中位 7.5 分钟，最快 2.6 分钟）。对外部卫星触发，VT 也能在约 1 小时内开始 ToO 观测。
+
+\item \textbf{证认效率}：24 小时内发布的报告占可计算样本的 73\%（154/212），中位证认时间约 5.6 小时。部分报告利用 VHF 快速预警数据实现了亚小时级发布。
+
+\item \textbf{工作量}：按每次证认 2 人参与估算，整个运行期间证认工作的累积投入约为 2554 人时（106 人天）。这一数字反映了 VT 团队在瞬变天体后随观测上的持续人力投入。
+
 \end{enumerate}
 
-未来工作将包括：(1) 结合多波段数据进行 afterglow 光变拟合；(2) 扩展数据源至其他望远镜的观测报告；(3) 开发实时 GRB 警报推送功能。
+需要指出的是，本报告的统计受限于 GCN 正文中时间信息的完整性。部分早期报告（2024--2025 年初）未在正文中提供绝对时间，相关指标通过事件名日期与后随延时进行估算（33 个样本），存在一定的精度限制。
 
-\vspace{1em}
-\noindent\textbf{数据访问：} 完整数据和交互式可视化可通过 Web 界面访问：\url{http://127.0.0.1:5050/}
+% ========== 附录 ==========
+\section*{附录：统计方法说明}
+
+\addcontentsline{toc}{section}{附录：统计方法说明}
+
+\begin{itemize}
+\item 后随延时从 GCN 正文中的相对时间描述（如 ``X hours after the burst''）自动提取。
+\item 证认时间 = GCN 发布时间 $-$ 观测开始时间 $-$ 6\,h（X-band 下行）。对于无绝对观测时间的样本，利用事件名中的日期（如 GRB 250106A $\rightarrow$ 2025-01-06）加上后随延时估算观测开始时间。
+\item 工作量计算中，超过 24 小时发布的样本以 24 小时内样本的平均证认时间（6.0\,h）替代，以避免极端值的影响。
+\item 所有数据可通过 SVOM/VT GCN 历史可视化系统在线查看：\url{http://localhost:5050/}。
+\end{itemize}
 
 \end{document}
