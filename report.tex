@@ -60,7 +60,33 @@ SVOM（Space Variable Objects Monitor）是中法联合空间天文卫星，搭�
 \label{fig:monthly}
 \end{figure}
 
-% ----- 3.2 触发源分布 -----
+% ----- 3.2 报告类型与波段分布 -----
+\subsection{报告类型与波段分布}
+
+图~\ref{fig:type_pie} 展示了 260 篇报告的类型构成。其中光学证认（探测到光学对应体）186 篇，占 71.5\%；上限报告（未探测到对应体，给出流量上限）62 篇，占 23.8\%；其余为恒星耀发、澄清等少量报告。
+
+图~\ref{fig:band_bar} 显示了各报告涉及的观测波段。VT\_R 波段出现 173 次，VT\_B 波段出现 161 次，两波段数量相近，反映了 VT 双波段同步观测的特点。
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+\centering
+\includegraphics[width=\textwidth]{doc_figures/type_pie.png}
+\caption{报告类型分布}
+\label{fig:type_pie}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering
+\includegraphics[width=\textwidth]{doc_figures/band_bar.png}
+\caption{观测波段分布}
+\label{fig:band_bar}
+\end{subfigure}
+\caption{报告类型与波段分布。}
+\label{fig:type_band}
+\end{figure}
+
+% ----- 3.3 触发源分布 -----
 \subsection{触发源分布}
 
 260 篇报告中，由 SVOM/ECLAIRs 自身触发的后随观测占 129 篇（49.6\%），其余来自外部卫星触发的 ToO（Target of Opportunity）观测，包括 Einstein Probe（76 篇）、Swift（29 篇）、Fermi（24 篇）等（图~\ref{fig:trigger}）。这表明 VT 既能独立响应 SVOM 自探测的暴事件，也能对其他卫星的发现进行快速后随观测。
@@ -72,7 +98,7 @@ SVOM（Space Variable Objects Monitor）是中法联合空间天文卫星，搭�
 \label{fig:trigger}
 \end{figure}
 
-% ----- 3.3 后随观测延时 -----
+% ----- 3.4 后随观测延时 -----
 \subsection{后随观测响应速度}
 
 后随观测延时是衡量望远镜响应能力的关键指标。图~\ref{fig:delay} 展示了不同触发源的后随延时分布。表~\ref{tab:delay} 汇总了延时在 2 小时以内的统计结果。
@@ -102,7 +128,31 @@ Fermi        & 4  & 2743\,s（0.762\,h） & 5040\,s（1.400\,h） & 1.75\,h \\
 
 SVOM/ECLAIRs 自触发时，卫星平台可自动转向（auto-slew），VT 在 2 小时内有 73 次观测记录，中位延时仅 449 秒（约 7.5 分钟），最快一次观测在触发后 155 秒即开始。相比之下，外部卫星触发的 ToO 观测需要地面指令上行，中位延时通常在 1 小时左右。
 
-% ----- 3.4 证认时间消耗 -----
+% ----- 3.5 光度演化 -----
+\subsection{光学光度与后随延时}
+
+图~\ref{fig:mag_vs_delay} 以 $3\times2$ 子图形式展示了各触发源（SVOM、EP、Swift）在 VT\_B 和 VT\_R 两个波段中的星等随后随延时的分布。绿色圆点为探测，红色三角为上限。整体来看，早期观测（$<$1000\,s）探测到的源较亮（15--19\,mag），随着延时增加，星等逐渐偏暗，反映了 GRB 光变曲线的衰减特征。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{doc_figures/mag_vs_delay.png}
+\caption{星等 vs 后随延时散点图（按触发源和波段分组）。绿色为探测，红色三角为上限，y 轴已反转。}
+\label{fig:mag_vs_delay}
+\end{figure}
+
+% ----- 3.6 发布延时 -----
+\subsection{后随延时与 GCN 发布延时}
+
+图~\ref{fig:obs_vs_publish} 展示了后随观测延时（横轴）与 GCN 发布延时（纵轴）的关系。对角虚线 $y=x$ 表示发布延时等于后随延时。大部分点位于对角线上方，说明从观测开始到 GCN 发布之间存在额外的时间消耗（数据下行、分析、撰写）。SVOM 自触发样本集中在图的左下方，即延时短且发布快。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{doc_figures/obs_vs_publish.png}
+\caption{后随观测延时 vs GCN 发布延时（双对数坐标）。红色为 SVOM/ECLAIRs，蓝色为外部卫星，虚线为 $y=x$。}
+\label{fig:obs_vs_publish}
+\end{figure}
+
+% ----- 3.7 证认时间消耗 -----
 \subsection{证认时间消耗}
 
 证认时间消耗反映了从数据获取到报告发布的完整工作流程效率。图~\ref{fig:ident} 展示了 24 小时内发布的 154 个样本的证认时间分布。
@@ -116,7 +166,7 @@ SVOM/ECLAIRs 自触发时，卫星平台可自动转向（auto-slew），VT 在 
 \label{fig:ident}
 \end{figure}
 
-% ----- 3.5 工作量累积 -----
+% ----- 3.8 证认工作量 -----
 \subsection{证认工作量}
 
 图~\ref{fig:workload} 展示了证认工作量的月度分布和累积增长。按每次暴事件 2 人参与计算，2024 年 8 月至 2026 年 7 月期间，证认工作累积总量约为 2554 人时（折合约 106 人天）。其中 58 个发布延时超过 24 小时的样本（多为证认困难或后续确认观测），采用 24 小时内样本的平均证认时间（6.0 小时）进行了替代。

@@ -68,6 +68,44 @@ plt.savefig(os.path.join(OUT_DIR, "trigger_bar.png"), dpi=150)
 plt.close()
 print("Saved trigger_bar.png")
 
+# ===== 图2b: 报告类型分布饼图 =====
+type_map = {'detection': '光学证认', 'upper_limit': '上限', 'stellar_flare': '恒星耀发', 'clarification': '澄清', 'other': '其他'}
+type_counts = Counter(r.get('report_type','other') for r in recs)
+tl = [type_map.get(k,k) for k in type_counts if type_counts[k]>0]
+tv = [type_counts[k] for k in type_counts if type_counts[k]>0]
+tc = ['#4ade80','#f87171','#f59e0b','#60a5fa','#94a3b8'][:len(tv)]
+
+fig, ax = plt.subplots(figsize=(6, 4))
+wedges, texts, autotexts = ax.pie(tv, labels=tl, colors=tc, autopct='%1.1f%%',
+    startangle=90, pctdistance=0.75, wedgeprops=dict(width=0.45))
+for at in autotexts: at.set_fontsize(9)
+ax.set_title('报告类型分布', fontsize=13)
+plt.tight_layout()
+plt.savefig(os.path.join(OUT_DIR, "type_pie.png"), dpi=150)
+plt.close()
+print("Saved type_pie.png")
+
+# ===== 图2c: 波段分布 =====
+band_counts = Counter()
+for r in recs:
+    for b in (r.get('bands') or []):
+        band_counts[b] += 1
+bl = list(band_counts.keys())
+bv = list(band_counts.values())
+
+fig, ax = plt.subplots(figsize=(6, 3.8))
+bars = ax.bar(bl, bv, color=['#f59e0b','#3b82f6'][:len(bl)], width=0.5)
+ax.bar_label(bars, padding=3, fontsize=10)
+ax.set_ylabel('报告数量', fontsize=11)
+ax.set_title('观测波段分布', fontsize=13)
+ax.set_ylim(0, max(bv)*1.15)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+plt.savefig(os.path.join(OUT_DIR, "band_bar.png"), dpi=150)
+plt.close()
+print("Saved band_bar.png")
+
 # ===== 图3: 后随延时直方图 =====
 delays_svom = [r['trigger_to_obs_hr'] for r in recs
                if isinstance(r.get('trigger_to_obs_hr'),(int,float)) and r['trigger_to_obs_hr']>0
@@ -90,6 +128,123 @@ plt.tight_layout()
 plt.savefig(os.path.join(OUT_DIR, "delay_hist.png"), dpi=150)
 plt.close()
 print("Saved delay_hist.png")
+
+# ===== 图3b: 星等 vs 后随延时散点图 (3×2 子图) =====
+group_names = ["SVOM", "EP", "Swift"]
+group_fns = {
+    "SVOM": lambda ts: ts.startswith("SVOM"),
+    "EP": lambda ts: ts == "EP",
+    "Swift": lambda ts: ts == "Swift",
+}
+band_names = ["VT_B", "VT_R"]
+det_color = "#4ade80"
+ul_color = "#f87171"
+
+# 收集所有子图数据
+all_data = {}
+all_y_vals = []
+for gname in group_names:
+    gfn = group_fns[gname]
+    for band in band_names:
+        det_x, det_y = [], []
+        ul_x, ul_y = [], []
+        for r in recs:
+            ts = r.get("trigger_source", "")
+            if not gfn(ts):
+                continue
+            d = r.get("trigger_to_obs_hr")
+            for m in (r.get("magnitudes") or []):
+                if m.get("band") != band:
+                    continue
+                val = m.get("value")
+                if not isinstance(val, (int, float)):
+                    continue
+                t_eff = m.get("t_mid_hr")
+                if isinstance(t_eff, (int, float)) and t_eff >= 0:
+                    d_eff = t_eff
+                elif isinstance(d, (int, float)) and d >= 0:
+                    d_eff = d
+                else:
+                    continue
+                d_sec = d_eff * 3600.0
+                if d_sec > 3.6e6:
+                    continue
+                if m.get("is_limit"):
+                    ul_x.append(d_sec); ul_y.append(val)
+                else:
+                    det_x.append(d_sec); det_y.append(val)
+        all_data[(gname, band)] = (det_x, det_y, ul_x, ul_y)
+        all_y_vals.extend(det_y + ul_y)
+
+ymin, ymax = (min(all_y_vals) - 0.5, max(all_y_vals) + 0.5) if all_y_vals else (14, 25)
+
+fig, axes = plt.subplots(3, 2, figsize=(9, 9), sharex=True)
+for row, gname in enumerate(group_names):
+    for col, band in enumerate(band_names):
+        ax = axes[row][col]
+        det_x, det_y, ul_x, ul_y = all_data[(gname, band)]
+        if det_x:
+            ax.scatter(det_x, det_y, c=det_color, s=15, alpha=0.7, edgecolors='none', label=f'探测 (n={len(det_x)})')
+        if ul_x:
+            ax.scatter(ul_x, ul_y, c=ul_color, s=15, alpha=0.7, marker='v', edgecolors='none', label=f'上限 (n={len(ul_x)})')
+        ax.set_xscale('log')
+        ax.set_ylim(ymax, ymin)  # 反转y轴
+        ax.set_title(f'{gname} / {band}', fontsize=11)
+        if col == 0:
+            ax.set_ylabel('星等 (mag)', fontsize=10)
+        if row == 2:
+            ax.set_xlabel('后随延时 T-T$_0$ (s)', fontsize=10)
+        ax.legend(fontsize=7, loc='lower right')
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+fig.suptitle('星等 vs 后随延时（按触发源和波段）', fontsize=13, y=0.98)
+plt.tight_layout(rect=[0, 0, 1, 0.96])
+plt.savefig(os.path.join(OUT_DIR, "mag_vs_delay.png"), dpi=150)
+plt.close()
+print("Saved mag_vs_delay.png")
+
+# ===== 图3c: 后随延时 vs GCN发布延时散点图 =====
+from datetime import datetime, timezone as tz2
+svom_x2, svom_y2 = [], []
+oth_x2, oth_y2 = [], []
+for r in recs:
+    d_obs = r.get("trigger_to_obs_hr")
+    if not isinstance(d_obs, (int, float)) or d_obs <= 0:
+        continue
+    obs_str = r.get("obs_start_utc")
+    if not obs_str:
+        continue
+    try:
+        obs_dt = datetime.fromisoformat(obs_str.replace("Z", "+00:00"))
+        if obs_dt.tzinfo is None: obs_dt = obs_dt.replace(tzinfo=tz2.utc)
+        pub_dt = datetime.fromtimestamp(r["createdOn"]/1000.0, tz=tz2.utc)
+    except: continue
+    d_pub = (pub_dt - obs_dt).total_seconds()/3600.0 + d_obs
+    if d_pub <= 0 or d_pub > 2000: continue
+    src = r.get("trigger_source","") or ""
+    if src.startswith("SVOM"): svom_x2.append(d_obs); svom_y2.append(d_pub)
+    else: oth_x2.append(d_obs); oth_y2.append(d_pub)
+
+fig, ax = plt.subplots(figsize=(7, 4.5))
+if oth_x2:
+    ax.scatter(oth_x2, oth_y2, c='#3b82f6', s=20, alpha=0.6, edgecolors='none', label='外部卫星')
+if svom_x2:
+    ax.scatter(svom_x2, svom_y2, c='#ef4444', s=20, alpha=0.6, edgecolors='none', label='SVOM/ECLAIRs')
+allv = svom_x2 + svom_y2 + oth_x2 + oth_y2
+if allv:
+    lo, hi = min(allv)*0.5, max(allv)*2
+    ax.plot([lo,hi],[lo,hi], '--', color='#94a3b8', linewidth=1, label='y = x')
+ax.set_xscale('log'); ax.set_yscale('log')
+ax.set_xlabel('后随延时 (后随开始−T$_0$, h)', fontsize=11)
+ax.set_ylabel('GCN 发布延时 (发布−T$_0$, h)', fontsize=11)
+ax.set_title('后随观测延时 vs GCN 发布延时', fontsize=13)
+ax.legend(fontsize=9, loc='lower right')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.tight_layout()
+plt.savefig(os.path.join(OUT_DIR, "obs_vs_publish.png"), dpi=150)
+plt.close()
+print("Saved obs_vs_publish.png")
 
 # ===== 图4: 证认时间散点图 =====
 svom_x, svom_y = [], []
