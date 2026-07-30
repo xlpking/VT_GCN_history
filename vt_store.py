@@ -266,6 +266,8 @@ class VTStore:
             "upper_limit_count": by_type.get("upper_limit", 0),
             "stellar_flare_count": by_type.get("stellar_flare", 0),
             "clarification_count": by_type.get("clarification", 0),
+            "detection_rate": (by_type.get("detection", 0) / (by_type.get("detection", 0) + by_type.get("upper_limit", 0)))
+                if (by_type.get("detection", 0) + by_type.get("upper_limit", 0)) > 0 else 0,
             "events_count": len(by_event),
             "median_delay_hr": delay_hours_sorted[n // 2] if n else None,
             "min_delay_hr": delay_hours_sorted[0] if n else None,
