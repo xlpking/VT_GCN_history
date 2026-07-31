@@ -177,6 +177,8 @@ class VTStore:
         self._record_update("incremental", added=added, scanned=scanned, max_id=self._meta["max_circular_id"])
         self._apply_manual_overrides()
         self._save()
+        if added > 0:
+            self._refresh_static_figures()
         log.info("Incremental done: scanned=%d, VT added=%d, latest=%d", scanned, added, latest)
         return added
 
@@ -191,6 +193,21 @@ class VTStore:
             # 仅保留最近 200 条历史
             self._meta["update_history"] = self._meta["update_history"][-200:]
 
+    def _refresh_static_figures(self) -> None:
+        """增量更新后自动重新生成静态光变图（PNG）。"""
+        try:
+            import subprocess, sys, os
+            script = os.path.join(os.path.dirname(__file__), "lc_density_plot.py")
+            if os.path.exists(script):
+                subprocess.run(
+                    [sys.executable, script],
+                    capture_output=True, timeout=120,
+                    cwd=os.path.dirname(__file__),
+                )
+                log.info("Static figures refreshed after incremental update")
+        except Exception as exc:
+            log.warning("Failed to refresh static figures: %s", exc)
+
     # ---------- 查询 ----------
     def all_records(self) -> List[dict]:
         with self._lock:
@@ -204,10 +221,85 @@ class VTStore:
         with self._lock:
             return self._records.get(cid)
 
+    def upper_limit_events(self) -> list:
+        """Events where VT only has upper limits (no detection in any band)."""
+        records = self.all_records()
+        events = {}
+        for r in records:
+            rtype = r.get("report_type", "")
+            if rtype in ("stellar_flare", "clarification", "other"):
+                continue
+            event = r.get("event_name") or ""
+            if not event:
+                continue
+            ev = events.setdefault(event, {
+                "event": event, "source": "", "gcns": set(),
+                "detections": [], "limits": [], "delay_hr": None,
+                "is_svom": False, "is_auto_followup": False,
+            })
+            ev["source"] = r.get("trigger_source", "") or ev["source"]
+            ev["gcns"].add(r.get("circularId"))
+            d = r.get("trigger_to_obs_hr")
+            if isinstance(d, (int, float)) and (ev["delay_hr"] is None or d < ev["delay_hr"]):
+                ev["delay_hr"] = round(d, 2)
+            src = (r.get("trigger_source", "") or "")
+            if src.startswith("SVOM"):
+                ev["is_svom"] = True
+                if isinstance(d, (int, float)) and 0 < d <= 1.0:
+                    ev["is_auto_followup"] = True
+            # Check manual override for is_auto_followup
+            if r.get("is_auto_followup"):
+                ev["is_auto_followup"] = True
+            for m in r.get("magnitudes", []):
+                entry = {
+                    "gcn": r.get("circularId"),
+                    "band": m.get("band", ""),
+                    "value": m.get("value"),
+                    "t_mid_hr": m.get("t_mid_hr"),
+                    "is_limit": m.get("is_limit", False),
+                }
+                if entry["is_limit"]:
+                    ev["limits"].append(entry)
+                else:
+                    ev["detections"].append(entry)
+        result = [v for v in events.values() if not v["detections"] and v["limits"]]
+        result.sort(key=lambda x: min(x["gcns"]))
+        for v in result:
+            v["gcns"] = sorted(v["gcns"])
+            # Merge limits: deduplicate by (band), keep deepest limit per band
+            band_best = {}
+            for lim in v["limits"]:
+                b = lim["band"]
+                if b not in band_best or (lim["value"] and (not band_best[b]["value"] or lim["value"] > band_best[b]["value"])):
+                    band_best[b] = lim
+            v["limits_merged"] = sorted(band_best.values(), key=lambda x: x["band"])
+            # Build display strings
+            v["limit_str"] = "; ".join(
+                f'{l["band"]}&gt;{l["value"]:.1f}' for l in v["limits_merged"]
+            )
+            v["t_mid_str"] = "; ".join(
+                f'{l["t_mid_hr"]:.2f}h' if l.get("t_mid_hr") else '—' for l in v["limits_merged"]
+            )
+            v["gcn_str"] = ", ".join(str(g) for g in v["gcns"])
+            v["primary_gcn"] = v["gcns"][0] if v["gcns"] else None
+        return result
+
+    def ul_comments_map(self) -> dict:
+        """Map GCN ID -> ul_comment from overrides."""
+        overrides = {}
+        try:
+            from manual_override import load_overrides
+            ovs = load_overrides()
+            for cid, ov in ovs.items():
+                if "ul_comment" in ov:
+                    overrides[int(cid)] = ov["ul_comment"]
+        except Exception:
+            pass
+        return overrides
+
     def stats(self) -> dict:
         records = self.all_records()
         total = len(records)
-        # 兼容所有 report_type（detection/upper_limit/stellar_flare/clarification/other）
         by_type: Dict[str, int] = {}
         by_band: Dict[str, int] = {}
         by_trigger: Dict[str, int] = {}
@@ -255,18 +347,17 @@ class VTStore:
                 return None
             return sum(1 for d in delay_hours_sorted if d <= thr) / n
 
-        # 自动后随证认率 (SVOM≤1h, EP/Swift≤2h)
+        # 自动后随证认率 (SVOM≤1h, EP/Swift≤2h, or is_auto_followup override)
         af_det, af_ul = 0, 0
         for r in records:
             d = r.get("trigger_to_obs_hr")
-            if not isinstance(d, (int, float)) or d <= 0:
-                continue
             rt = r.get("report_type", "")
             if rt not in ("detection", "upper_limit"):
                 continue
             src = r.get("trigger_source", "") or ""
             thr = 1.0 if src.startswith("SVOM") else 2.0
-            if d > thr:
+            is_af = (isinstance(d, (int, float)) and 0 < d <= thr) or r.get("is_auto_followup")
+            if not is_af:
                 continue
             if rt == "detection":
                 af_det += 1

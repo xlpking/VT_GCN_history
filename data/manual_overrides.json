@@ -55,9 +55,29 @@
     "updated_at": "2026-07-29T04:24:00.229595+00:00"
   },
   "39957": {
+    "report_type": "upper_limit",
     "trigger_source": "Swift",
-    "note": "",
-    "updated_at": "2026-07-29T04:24:16.744497+00:00"
+    "bands": [
+      "VT_R"
+    ],
+    "magnitudes": [
+      {
+        "band": "VT_R",
+        "value": 21.7,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 3.2
+      },
+      {
+        "band": "VT_R",
+        "value": 23.0,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 6.8
+      }
+    ],
+    "note": "LLM: two ToO epochs, VT_R 3sigma 21.7@3.2h and 23.0@6.8h",
+    "updated_at": "2026-07-30T16:17:51.963562+00:00"
   },
   "39380": {
     "trigger_source": "SVOM/ECLAIRs",
@@ -70,9 +90,21 @@
     "updated_at": "2026-07-29T04:25:36.913436+00:00"
   },
   "38852": {
-    "trigger_source": "SVOM/ECLAIRs",
-    "note": "",
-    "updated_at": "2026-07-29T04:26:28.861759+00:00"
+    "report_type": "detection",
+    "magnitudes": [
+      {
+        "band": "VT_R",
+        "value": 19.0,
+        "unit": "mag",
+        "is_limit": false,
+        "t_mid_hr": 1.516
+      }
+    ],
+    "bands": [
+      "VT_R"
+    ],
+    "note": "LLM: actual detection (optical candidate), 3sigma limit in body only characterizes detection capability",
+    "updated_at": "2026-07-31T00:49:19.796419+00:00"
   },
   "38838": {
     "trigger_source": "SVOM/ECLAIRs",
@@ -85,9 +117,11 @@
     "updated_at": "2026-07-29T04:27:39.242470+00:00"
   },
   "42433": {
-    "trigger_source": "SVOM/ECLAIRs",
-    "note": "",
-    "updated_at": "2026-07-29T04:27:40.659506+00:00"
+    "report_type": "stellar_flare",
+    "magnitudes": [],
+    "bands": [],
+    "note": "LLM: user confirmed stellar flare (GCN42433 subject says Likely a stellar flare)",
+    "updated_at": "2026-07-31T00:31:07.319425+00:00"
   },
   "38829": {
     "trigger_source": "SVOM/ECLAIRs",
@@ -95,9 +129,9 @@
     "updated_at": "2026-07-29T04:36:24.412936+00:00"
   },
   "38824": {
-    "trigger_source": "SVOM/ECLAIRs",
-    "note": "",
-    "updated_at": "2026-07-29T04:36:44.045099+00:00"
+    "report_type": "upper_limit",
+    "note": "stray light from Earth",
+    "updated_at": "2026-07-31T00:38:27.957148+00:00"
   },
   "38813": {
     "trigger_source": "SVOM/ECLAIRs",
@@ -125,14 +159,35 @@
     "updated_at": "2026-07-29T04:38:37.525772+00:00"
   },
   "38568": {
-    "trigger_source": "SVOM/ECLAIRs",
-    "note": "",
-    "updated_at": "2026-07-29T04:38:58.159316+00:00"
+    "report_type": "detection",
+    "bands": [
+      "VT_R",
+      "VT_B"
+    ],
+    "magnitudes": [
+      {
+        "band": "VT_R",
+        "value": 23.7,
+        "unit": "mag",
+        "is_limit": false,
+        "t_mid_hr": 38.55
+      },
+      {
+        "band": "VT_B",
+        "value": 23.8,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 38.55
+      }
+    ],
+    "note": "LLM: VT_R 23.70+/-0.30 at ~38.55h post trigger, continuous fading; VT_B limit 23.80",
+    "updated_at": "2026-07-30T16:17:51.963562+00:00"
   },
   "38566": {
     "trigger_source": "Swift",
-    "note": "",
-    "updated_at": "2026-07-29T04:39:14.524931+00:00"
+    "note": "LLM audit: all mags are limits, fix to upper_limit LLM audit: all mags are limits, fix to upper_limit",
+    "updated_at": "2026-07-31T00:54:01.851077+00:00",
+    "report_type": "upper_limit"
   },
   "38545": {
     "trigger_source": "SVOM/ECLAIRs",
@@ -151,8 +206,9 @@
   },
   "38086": {
     "trigger_source": "SVOM/ECLAIRs",
-    "note": "",
-    "updated_at": "2026-07-29T04:43:05.056603+00:00"
+    "note": "LLM audit: all mags are limits, fix to upper_limit LLM audit: all mags are limits, fix to upper_limit",
+    "updated_at": "2026-07-31T00:54:01.851077+00:00",
+    "report_type": "upper_limit"
   },
   "37871": {
     "trigger_source": "Swift",
@@ -180,14 +236,35 @@
     "updated_at": "2026-07-29T04:44:32.936636+00:00"
   },
   "37243": {
-    "trigger_source": "SVOM/ECLAIRs",
-    "note": "",
-    "updated_at": "2026-07-29T04:44:33.705025+00:00"
+    "report_type": "upper_limit",
+    "bands": [
+      "VT_B",
+      "VT_R"
+    ],
+    "magnitudes": [
+      {
+        "band": "VT_B",
+        "value": 23.0,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 17.0
+      },
+      {
+        "band": "VT_R",
+        "value": 23.0,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 17.0
+      }
+    ],
+    "note": "LLM: limit 23.0 mag both channels at ~17h, ToO of EP/Swift GRB",
+    "updated_at": "2026-07-30T16:17:51.963562+00:00"
   },
   "42819": {
     "trigger_source": "SVOM/ECLAIRs",
-    "note": "",
-    "updated_at": "2026-07-29T04:49:20.103799+00:00"
+    "note": "LLM audit: all mags are limits, fix to upper_limit LLM audit: all mags are limits, fix to upper_limit",
+    "updated_at": "2026-07-31T00:54:01.851077+00:00",
+    "report_type": "upper_limit"
   },
   "41144": {
     "bands": [
@@ -203,5 +280,318 @@
     ],
     "note": "GCN 41144 早期报告写作不规范，实际指 VT_R 波段",
     "updated_at": "2026-07-30T10:10:00+00:00"
+  },
+  "43945": {
+    "report_type": "upper_limit",
+    "bands": [
+      "VT_B",
+      "VT_R"
+    ],
+    "magnitudes": [
+      {
+        "band": "VT_B",
+        "value": 22.5,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 0.171
+      },
+      {
+        "band": "VT_R",
+        "value": 22.5,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 0.171
+      }
+    ],
+    "note": "LLM: ~22.5 AB mag at mid time of 10.25 minutes, non-detection, dark burst",
+    "updated_at": "2026-07-30T16:17:51.963562+00:00"
+  },
+  "43834": {
+    "report_type": "upper_limit",
+    "bands": [
+      "VT_R"
+    ],
+    "magnitudes": [
+      {
+        "band": "VT_R",
+        "value": 22.0,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 0.795
+      }
+    ],
+    "note": "LLM: 22.0 mag in VT_R, ~47.68 min post trigger, non-detection",
+    "updated_at": "2026-07-30T16:17:51.963562+00:00"
+  },
+  "39931": {
+    "report_type": "upper_limit",
+    "bands": [
+      "VT_R"
+    ],
+    "magnitudes": [
+      {
+        "band": "VT_R",
+        "value": 23.1,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 4.0
+      }
+    ],
+    "note": "LLM: 3 sigma limit VT_R 23.1 mag at mid time of 4.0 hours",
+    "updated_at": "2026-07-30T16:17:51.963562+00:00"
+  },
+  "40444": {
+    "report_type": "detection",
+    "trigger_source": "EP",
+    "bands": [
+      "VT_R"
+    ],
+    "magnitudes": [
+      {
+        "band": "VT_R",
+        "value": 21.5,
+        "unit": "mag",
+        "is_limit": false,
+        "t_mid_hr": 1.6
+      }
+    ],
+    "note": "LLM: EP250512a, VT_R 21.5+/-0.2 at 1.6h after burst",
+    "updated_at": "2026-07-30T16:17:51.963562+00:00"
+  },
+  "37728": {
+    "report_type": "upper_limit",
+    "trigger_source": "Swift",
+    "bands": [
+      "VT_B",
+      "VT_R"
+    ],
+    "magnitudes": [
+      {
+        "band": "VT_B",
+        "value": 24.0,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 5.38
+      },
+      {
+        "band": "VT_R",
+        "value": 23.8,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 5.38
+      }
+    ],
+    "note": "LLM: 3sigma VT_B 24.0, VT_R 23.8 at ~5.38h, ToO of Swift/BAT GRB",
+    "updated_at": "2026-07-30T16:17:51.963562+00:00"
+  },
+  "39159": {
+    "report_type": "detection",
+    "bands": [
+      "VT_B"
+    ],
+    "magnitudes": [
+      {
+        "band": "VT_B",
+        "value": 20.91,
+        "unit": "mag",
+        "is_limit": false,
+        "t_mid_hr": 0.146
+      },
+      {
+        "band": "VT_B",
+        "value": 21.18,
+        "unit": "mag",
+        "is_limit": false,
+        "t_mid_hr": 0.208
+      }
+    ],
+    "note": "LLM: VT_B 20.91 at 8.75min, 21.18 at 12.5min post trigger",
+    "updated_at": "2026-07-30T16:17:51.963562+00:00"
+  },
+  "40960": {
+    "report_type": "detection",
+    "trigger_source": "EP",
+    "bands": [
+      "VT_B",
+      "VT_R"
+    ],
+    "magnitudes": [
+      {
+        "band": "VT_B",
+        "value": 20.4,
+        "unit": "mag",
+        "is_limit": false,
+        "t_mid_hr": null
+      },
+      {
+        "band": "VT_R",
+        "value": 20.4,
+        "unit": "mag",
+        "is_limit": false,
+        "t_mid_hr": null
+      }
+    ],
+    "note": "LLM: ~20.4 mag in both bands, blue optical source (EP250704a)",
+    "updated_at": "2026-07-30T16:17:51.963562+00:00"
+  },
+  "37820": {
+    "report_type": "upper_limit",
+    "bands": [
+      "VT_B",
+      "VT_R"
+    ],
+    "magnitudes": [
+      {
+        "band": "VT_B",
+        "value": 23.9,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 14.0
+      },
+      {
+        "band": "VT_R",
+        "value": 23.6,
+        "unit": "mag",
+        "is_limit": true,
+        "t_mid_hr": 14.0
+      }
+    ],
+    "note": "LLM: 3sigma VT_B 23.9, VT_R 23.6 at ~14.0h, ToO of SVOM/ECLAIRs GRB",
+    "updated_at": "2026-07-30T16:17:51.963562+00:00"
+  },
+  "42978": {
+    "report_type": "stellar_flare",
+    "magnitudes": [],
+    "bands": [],
+    "note": "LLM: user confirmed this is a stellar flare, not a GRB",
+    "updated_at": "2026-07-31T00:30:32.882517+00:00"
+  },
+  "41615": {
+    "report_type": "stellar_flare",
+    "magnitudes": [],
+    "bands": [],
+    "note": "LLM: user confirmed stellar flare (sb25083102)",
+    "updated_at": "2026-07-31T00:32:53.675668+00:00"
+  },
+  "41654": {
+    "report_type": "stellar_flare",
+    "magnitudes": [],
+    "bands": [],
+    "note": "LLM: user confirmed stellar flare (sb25083102)",
+    "updated_at": "2026-07-31T00:32:53.675668+00:00"
+  },
+  "41244": {
+    "magnitudes": [],
+    "bands": [],
+    "note": "LLM: VHF shallow limit superseded by deeper X-band limits in GCN41250",
+    "updated_at": "2026-07-31T00:34:07.904472+00:00"
+  },
+  "39722": {
+    "report_type": "upper_limit",
+    "event_name": "GRB 250314A",
+    "magnitudes": [],
+    "bands": [],
+    "note": "VHF shallow limit, superseded by GCN39728. Keep for delay info (285s auto slew).",
+    "updated_at": "2026-07-31T00:45:31.035422+00:00",
+    "ul_comment": "高红移z=7.3"
+  },
+  "41250": {
+    "trigger_to_obs_hr": 0.063,
+    "is_auto_followup": true,
+    "note": "LLM: auto followup, delay from GCN41244 (same event)",
+    "updated_at": "2026-07-31T01:28:33.782575+00:00"
+  },
+  "40582": {
+    "report_type": "upper_limit",
+    "ul_comment": "有host, 可能是强消光",
+    "updated_at": "2026-07-31T00:42:48.092418+00:00"
+  },
+  "39917": {
+    "report_type": "detection",
+    "magnitudes": [
+      {
+        "band": "VT_R",
+        "value": 20.1,
+        "unit": "mag",
+        "is_limit": false,
+        "t_mid_hr": 0.03
+      }
+    ],
+    "bands": [
+      "VT_R"
+    ],
+    "is_auto_followup": true,
+    "note": "LLM: optical candidate detected, automatic slew",
+    "updated_at": "2026-07-31T00:54:06.590771+00:00"
+  },
+  "45230": {
+    "report_type": "detection",
+    "magnitudes": [
+      {
+        "band": "VT_R",
+        "value": 21.4,
+        "unit": "mag",
+        "is_limit": false,
+        "t_mid_hr": 1.95
+      }
+    ],
+    "bands": [
+      "VT_R"
+    ],
+    "note": "LLM: actual optical candidate detection, not upper limit",
+    "updated_at": "2026-07-31T00:51:40.468131+00:00"
+  },
+  "39047": {
+    "trigger_to_obs_hr": 0.04,
+    "note": "LLM: automatic slew, first mid-time 2.5 min",
+    "updated_at": "2026-07-31T00:46:14.892809+00:00"
+  },
+  "41181": {
+    "trigger_to_obs_hr": 1.82,
+    "event_name": "GRB 250727A",
+    "note": "LLM: observation delay 1.82h parsed from body",
+    "updated_at": "2026-07-31T00:46:48.972359+00:00"
+  },
+  "40875": {
+    "trigger_to_obs_hr": 4.06,
+    "note": "LLM: observation delay 4.06h parsed from body",
+    "updated_at": "2026-07-31T00:47:37.313686+00:00"
+  },
+  "42712": {
+    "trigger_to_obs_hr": 1.1,
+    "is_auto_followup": true,
+    "note": "LLM: automatic slew confirmed from body text, delay 1.1h",
+    "updated_at": "2026-07-31T00:50:43.486354+00:00"
+  },
+  "43623": {
+    "report_type": "upper_limit",
+    "note": "LLM audit: all mags are limits, fix to upper_limit LLM audit: all mags are limits, fix to upper_limit",
+    "updated_at": "2026-07-31T00:54:01.851077+00:00"
+  },
+  "43551": {
+    "report_type": "upper_limit",
+    "note": "LLM audit: all mags are limits, fix to upper_limit LLM audit: all mags are limits, fix to upper_limit",
+    "updated_at": "2026-07-31T00:54:01.851077+00:00"
+  },
+  "43337": {
+    "report_type": "upper_limit",
+    "note": "LLM audit: all mags are limits, fix to upper_limit LLM audit: all mags are limits, fix to upper_limit",
+    "updated_at": "2026-07-31T00:54:01.851077+00:00"
+  },
+  "40412": {
+    "report_type": "upper_limit",
+    "note": "LLM audit: all mags are limits, fix to upper_limit LLM audit: all mags are limits, fix to upper_limit",
+    "updated_at": "2026-07-31T00:54:01.851077+00:00"
+  },
+  "38378": {
+    "report_type": "upper_limit",
+    "note": "LLM audit: all mags are limits, fix to upper_limit LLM audit: all mags are limits, fix to upper_limit",
+    "updated_at": "2026-07-31T00:54:01.851077+00:00"
+  },
+  "39728": {
+    "trigger_to_obs_hr": 0.079,
+    "is_auto_followup": true,
+    "note": "LLM: auto followup, delay from GCN39722 (same event)",
+    "updated_at": "2026-07-31T01:36:14.110392+00:00"
   }
 }

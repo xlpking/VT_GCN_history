@@ -882,6 +882,172 @@ def build_ident_time_trend(records: List[dict]) -> str:
             + '<div class="chart-card full" style="background:white;">' + _fig_to_html(fig2, height=460, dark=False) + '</div>')
 
 
+def build_lc_density_interactive(records: List[dict], band_label: str = "i/z") -> str:
+    """
+    Interactive light curve density plot with Swift background + SVOM/VT overlay.
+    Uses Plotly Heatmap for density + Scattergl for VT_R points with hover names.
+
+    Background data is cached to avoid re-reading ~34k files on every page load.
+    """
+    import os, glob, json, hashlib
+    import numpy as np
+
+    GRBLC_MAG_DIR = "/Users/xlp/Documents/trae_projects/grblc/grbLC/grblc/data/mag_files"
+    CACHE_DIR = os.path.join(os.path.dirname(__file__), "data", "cache")
+    os.makedirs(CACHE_DIR, exist_ok=True)
+
+    IZ_BANDS = {"i", "i'", "I", "Ic", "z", "z'", "J", "H", "K", "Ks"}
+    R_BANDS = {"R", "Rc", "r'", "r", "CR"}
+    band_set = IZ_BANDS if band_label == "i/z" else R_BANDS
+
+    # --- Cache key: hash of file list in grblc dir ---
+    cache_file = os.path.join(CACHE_DIR, f"swift_density_{band_label.replace('/','')}.json")
+    swift_files = sorted(glob.glob(os.path.join(GRBLC_MAG_DIR, "*_mag.txt")))
+    file_sig = hashlib.md5(str(len(swift_files)).encode()).hexdigest()
+
+    bg_t, bg_mag = [], []
+    cached = None
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, "r") as f:
+                cached = json.load(f)
+            if cached.get("sig") == file_sig:
+                bg_t = cached["t"]
+                bg_mag = cached["mag"]
+        except Exception:
+            cached = None
+
+    if not bg_t:
+        for fp in swift_files:
+            grb_name = os.path.basename(fp).replace("_mag.txt", "")
+            try:
+                with open(fp, "r", errors="ignore") as f:
+                    f.readline()
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        parts = line.split("\t")
+                        if len(parts) < 5:
+                            continue
+                        try:
+                            t, mag = float(parts[0]), float(parts[1])
+                        except ValueError:
+                            continue
+                        band = parts[3].strip()
+                        if band not in band_set:
+                            continue
+                        if t <= 0 or mag <= 0 or mag >= 30:
+                            continue
+                        bg_t.append(t)
+                        bg_mag.append(mag)
+            except Exception:
+                continue
+        # Save cache
+        try:
+            with open(cache_file, "w") as f:
+                json.dump({"sig": file_sig, "t": bg_t, "mag": bg_mag}, f)
+        except Exception:
+            pass
+    else:
+        pass  # loaded from cache
+
+    bg_t = np.array(bg_t)
+    bg_mag = np.array(bg_mag)
+
+    # --- 2D histogram ---
+    t_bins = np.logspace(0, 7, 70)
+    m_bins = np.linspace(8, 26, 75)
+    H, _, _ = np.histogram2d(bg_t, bg_mag, bins=[t_bins, m_bins])
+    H[H == 0] = np.nan  # transparent for empty bins
+
+    # --- SVOM/VT VT_R data from records ---
+    det_t, det_mag, det_name = [], [], []
+    ul_t, ul_mag, ul_name, ul_auto = [], [], [], []
+    for r in records:
+        src = r.get("trigger_source", "") or ""
+        if not src.startswith("SVOM"):
+            continue
+        rtype = r.get("report_type", "") or ""
+        if rtype in ("stellar_flare", "clarification"):
+            continue
+        event = r.get("event_name") or r.get("eventId") or ""
+        d = r.get("trigger_to_obs_hr")
+        is_af = (isinstance(d, (int, float)) and 0 < d <= 1.0) or r.get("is_auto_followup")
+        for m in r.get("magnitudes", []):
+            if m.get("band") != "VT_R":
+                continue
+            t_mid = m.get("t_mid_hr")
+            val = m.get("value")
+            if t_mid is None or val is None:
+                continue
+            t_sec = t_mid * 3600.0
+            if t_sec <= 0 or val <= 0 or val >= 30:
+                continue
+            if m.get("is_limit"):
+                ul_t.append(t_sec)
+                ul_mag.append(val)
+                ul_name.append(event)
+                ul_auto.append(bool(is_af))
+            else:
+                det_t.append(t_sec)
+                det_mag.append(val)
+                det_name.append(event)
+
+    # --- Build Plotly figure ---
+    fig = go.Figure()
+
+    # Background heatmap - use Viridis-derived colorscale for better clarity
+    fig.add_trace(go.Heatmap(
+        x=t_bins, y=m_bins, z=H.T,
+        colorscale=[[0, "rgba(240,240,240,1)"], [0.1, "rgba(200,200,210,1)"],
+                     [0.3, "rgba(130,140,170,1)"], [0.6, "rgba(60,70,120,1)"],
+                     [1, "rgba(20,25,70,1)"]],
+        reversescale=False,
+        opacity=0.7,
+        hovertemplate="t=%{x:.0f}s, mag=%{y:.1f}, count=%{z}<extra></extra>",
+        name=f"Swift {band_label}",
+        colorbar=dict(title="Density", thickness=12, len=0.6),
+    ))
+
+    # VT_R detections - hover shows name, mag, time for all points
+    if det_t:
+        fig.add_trace(go.Scattergl(
+            x=det_t, y=det_mag,
+            mode="markers",
+            marker=dict(size=10, color="red", line=dict(width=1.5, color="darkred")),
+            text=det_name,
+            customdata=[(t/3600,) for t in det_t],
+            hovertemplate="<b>%{text}</b><br>VT_R=%{y:.2f} mag<br>t=%{customdata[0]:.2f}h<extra></extra>",
+            name=f"VT_R detection (n={len(det_t)})",
+        ))
+
+    # VT_R upper limits - hover shows name, mag, time, auto status for all points
+    if ul_t:
+        fig.add_trace(go.Scattergl(
+            x=ul_t, y=ul_mag,
+            mode="markers",
+            marker=dict(size=10, symbol="triangle-down", color="lime",
+                        line=dict(width=1.5, color="darkgreen")),
+            text=ul_name,
+            customdata=[(t/3600, "auto" if a else "ToO") for t, a in zip(ul_t, ul_auto)],
+            hovertemplate="<b>%{text}</b><br>VT_R>%{y:.2f} mag<br>t=%{customdata[0]:.2f}h (%{customdata[1]})<extra></extra>",
+            name=f"VT_R upper limit (n={len(ul_t)})",
+        ))
+
+    fig.update_xaxes(type="log", title="Time after trigger (s)", range=[np.log10(50), 6],
+                     tickvals=[100, 1000, 10000, 100000, 1000000],
+                     ticktext=["10²", "10³", "10⁴", "10⁵", "10⁶"])
+    fig.update_yaxes(title="Magnitude", autorange="reversed", range=[10, 26])
+    fig.update_layout(
+        title=f"GRB Light Curve Density ({band_label} band) vs SVOM/VT VT_R",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+
+    html = _fig_to_html(fig, height=500, dark=False)
+    return '<div class="chart-card full" style="background:white;">' + html + '</div>'
+
+
 def build_all_charts(records: List[dict], stats: dict) -> "OrderedDict[str, str]":
     charts: "OrderedDict[str, str]" = OrderedDict()
     charts["type_pie"] = build_type_pie(stats)
@@ -892,5 +1058,6 @@ def build_all_charts(records: List[dict], stats: dict) -> "OrderedDict[str, str]
     charts["obs_vs_publish"] = build_obs_vs_publish(records)
     charts["ident_time"] = build_ident_time_trend(records)
     charts["monthly_bar"] = build_monthly_bar(stats)
+    charts["lc_density_iz"] = build_lc_density_interactive(records, "i/z")
     charts["timeline"] = build_timeline(records)
     return charts

@@ -555,6 +555,305 @@ def extract_bands_and_mags(subject: str, body: str) -> tuple[List[str], List[dic
             except ValueError:
                 pass
 
+    # Fallback 1: try Markdown table format if nothing found
+    if not mags:
+        md_bands, md_mags = _parse_markdown_table(body)
+        if md_bands:
+            bands = md_bands
+            mags = md_mags
+
+    # Fallback 2: try space-separated table format
+    # e.g. "4.36 hour  VT_R  68*70 sec  22.98+/-0.25"
+    if not mags:
+        sp_bands, sp_mags = _parse_space_table(body)
+        if sp_bands:
+            bands = sp_bands
+            mags = sp_mags
+
+    return bands, mags
+
+
+def _parse_markdown_table(body: str) -> tuple[List[str], List[dict]]:
+    """
+    Parse Markdown-style photometry tables like:
+
+    | date-obs (utc)      | mid-time   | exposure  | VT_B mag(AB) | VT_R mag(AB) |
+    | 2026-05-15T19:12:34 | 5.08 min   | 2*50 sec  | 16.16 ± 0.01 | 15.78 ± 0.01 |
+
+    Returns (bands, mags) with t_mid_hr extracted from the mid-time column.
+    """
+    bands: List[str] = []
+    mags: List[dict] = []
+    lines = body.splitlines()
+
+    # Find table blocks (consecutive lines starting with |)
+    i = 0
+    while i < len(lines):
+        ln = lines[i].strip()
+        if not ln.startswith("|"):
+            i += 1
+            continue
+        # Collect table block
+        block = []
+        while i < len(lines) and lines[i].strip().startswith("|"):
+            block.append(lines[i].strip())
+            i += 1
+
+        if len(block) < 2:
+            continue
+
+        # Parse header (same splitting as data rows for index alignment)
+        header = [c.strip() for c in block[0].split("|")]
+        if header and header[0] == "":
+            header.pop(0)
+        if header and header[-1] == "":
+            header.pop()
+
+        # Find VT_B / VT_R column indices
+        vt_b_col = vt_r_col = None
+        mid_col = exp_col = None
+        for ci, col_name in enumerate(header):
+            cn = col_name.lower()
+            if "vt_b" in cn or "vtb" in cn:
+                vt_b_col = ci
+            if "vt_r" in cn or "vtr" in cn:
+                vt_r_col = ci
+            if "mid" in cn and "time" in cn:
+                mid_col = ci
+            if "exp" in cn:
+                exp_col = ci
+
+        if vt_b_col is None and vt_r_col is None:
+            continue
+
+        # Parse data rows (skip separator rows like |---|---|)
+        for row in block[1:]:
+            cells = [c.strip() for c in row.split("|")]
+            # Remove leading/trailing empty from | delimiters
+            if cells and cells[0] == "":
+                cells.pop(0)
+            if cells and cells[-1] == "":
+                cells.pop()
+            # Filter separator
+            if all(re.match(r"^[-:\s]*$", c) for c in cells if c):
+                continue
+
+            # Extract mid-time
+            t_mid_hr = None
+            if mid_col is not None and mid_col < len(cells):
+                mt = cells[mid_col]
+                # formats: "5.08 min", "1.07 h", "0.965 hour", "123 sec"
+                mtm = re.match(r"([\d.]+)\s*(min|sec|s|hour|hr|h)?", mt, re.IGNORECASE)
+                if mtm:
+                    try:
+                        raw = float(mtm.group(1))
+                        unit = (mtm.group(2) or "").lower()
+                        if unit in ("sec", "s"):
+                            t_mid_hr = raw / 3600.0
+                        elif unit.startswith("min"):
+                            t_mid_hr = raw / 60.0
+                        else:
+                            t_mid_hr = raw
+                    except ValueError:
+                        pass
+
+            # Extract VT_B
+            for band, col in [("VT_B", vt_b_col), ("VT_R", vt_r_col)]:
+                if col is None or col >= len(cells):
+                    continue
+                val_str = cells[col]
+                # Parse magnitude: "16.16 ± 0.01" or ">21.5" or "21.5"
+                is_limit = val_str.startswith(">")
+                mv = re.search(r"([\d.]+)", val_str.replace(">", ""))
+                if mv:
+                    try:
+                        val = float(mv.group(1))
+                        if 10 <= val <= 27:
+                            if band not in bands:
+                                bands.append(band)
+                            entry = {"band": band, "value": val, "unit": "mag",
+                                     "is_limit": is_limit}
+                            if t_mid_hr is not None:
+                                entry["t_mid_hr"] = t_mid_hr
+                            mags.append(entry)
+                    except ValueError:
+                        pass
+
+    return bands, mags
+
+
+def _parse_space_table(body: str) -> tuple[List[str], List[dict]]:
+    """
+    Parse various space-separated photometry table formats found in GCNs.
+
+    Supported formats:
+    1. "4.36 hour  VT_R  68*70 sec  22.98+/-0.25" (mid-time unit band exp mag)
+    2. "48.133 | 28x60 | 20.388 | 0.08 | VT_R" (pipe-separated, band last)
+    3. "2.2  2.85  VT_R  23.3" (mid-time exp band mag)
+    4. "377  300  VT_R  21.5" (mid-time(sec) exp band limit)
+    5. "VT_B  13.25  149x100s  23.5 +/-0.2" (band mid-time exp mag)
+    6. "VT_B~21.53 mag(AB) ... mid time of 443 seconds" (text)
+    """
+    bands: List[str] = []
+    mags: List[dict] = []
+
+    def _add(band, val, t_mid_hr, is_limit):
+        if band and val is not None and 10 <= val <= 27:
+            if band not in bands:
+                bands.append(band)
+            entry = {"band": band, "value": val, "unit": "mag", "is_limit": is_limit}
+            entry["t_mid_hr"] = t_mid_hr
+            mags.append(entry)
+
+    def _to_hr(raw, unit=""):
+        u = (unit or "").lower()
+        if u.startswith("sec") or u == "s":
+            return raw / 3600.0
+        if u.startswith("min"):
+            return raw / 60.0
+        return raw  # default hours
+
+    lines = body.splitlines()
+
+    # Detect if this is an upper-limit table (context-based)
+    body_lower = body.lower()
+    is_limit_context = bool(re.search(
+        r"(?:3\s*sigma\s*limit|upper\s*limit|upperlim|non[- ]detection|no\s+(?:credible\s+)?candidate)",
+        body_lower
+    ))
+
+    for line in lines:
+        ln = line.strip()
+        if not ln:
+            continue
+
+        # Skip color index lines
+        if re.search(r"vt[_\s-]?[br]\s*[-–—]\s*vt", ln, re.IGNORECASE):
+            continue
+
+        # --- Format 2: pipe-separated, band at end ---
+        # "48.133 | 28x60 | 20.388 | 0.08 | VT_R"
+        if "|" in ln and re.search(r"VT[_\s-]?[BR]", ln, re.IGNORECASE):
+            cells = [c.strip() for c in ln.split("|")]
+            # band is usually last cell
+            band_match = re.search(r"(VT[_\s-]?[BR])", ln, re.IGNORECASE)
+            if band_match:
+                band = _norm_band(band_match.group(1))
+                # find magnitude: a float in range 14-25, not exposure
+                val = None
+                is_limit = ">" in ln or is_limit_context
+                t_mid = None
+                for ci, cell in enumerate(cells):
+                    # exposure like 28x60
+                    if re.match(r"^[\d.]+\s*[x*]", cell):
+                        continue
+                    # band cell
+                    if re.search(r"VT[_\s-]?[BR]", cell, re.IGNORECASE):
+                        continue
+                    # time: first numeric cell
+                    mv = re.match(r"^([\d.]+)\s*(hour|hr|h|min|sec|s)?", cell, re.IGNORECASE)
+                    if mv and t_mid is None:
+                        try:
+                            raw = float(mv.group(1))
+                            unit = mv.group(2) or ""
+                            # guess: if >100 and no unit, likely seconds; if header says hours use hours
+                            if not unit:
+                                if raw > 100:
+                                    unit = "sec"
+                                else:
+                                    unit = "hour"
+                            t_mid = _to_hr(raw, unit)
+                        except ValueError:
+                            pass
+                        continue
+                    # magnitude value
+                    mv2 = re.match(r"^(>?~?\s*)([\d.]+)", cell)
+                    if mv2 and val is None:
+                        try:
+                            v = float(mv2.group(2))
+                            if 10 <= v <= 26:
+                                val = v
+                                if ">" in mv2.group(1):
+                                    is_limit = True
+                        except ValueError:
+                            pass
+                if val is not None:
+                    _add(band, val, t_mid, is_limit)
+                continue
+
+        # --- Format 5: band first ---
+        # "VT_B  13.25  149x100s  23.5 +/-0.2" or "VT_R 13.26 142x100s 22.4 +/-0.1"
+        m5 = re.match(
+            r"\s*(VT[_\s-]?[BR])\s+"
+            r"([\d.]+)\s*(hour|hr|h|min|sec|s|minutes?)?\s+"  # mid-time
+            r"(?:[\d.]+\s*[x*+\s]*\d+\s*(?:sec|s)?\s+)?"       # exposure
+            r"(>?~?\s*)([\d.]+)"                                # magnitude
+            r"(?:\s*(?:\+/?-|±)\s*[\d.]+)?",
+            ln, re.IGNORECASE,
+        )
+        if m5:
+            band = _norm_band(m5.group(1))
+            t_raw = float(m5.group(2))
+            t_unit = m5.group(3) or ""
+            is_limit = ">" in m5.group(4) or is_limit_context
+            val = float(m5.group(5))
+            _add(band, val, _to_hr(t_raw, t_unit), is_limit)
+            continue
+
+        # --- Format 1/3/4: mid-time first, then band ---
+        # "4.36 hour VT_R 68*70 sec 22.98"
+        # "2.2 2.85 VT_R 23.3"
+        # "377 300 VT_R 21.5"
+        m1 = re.match(
+            r"\s*([\d.]+)\s*(hour|hr|h|min|sec|s|minutes?)?\s+"  # mid-time (+optional unit)
+            r"(?:[\d.]+\s*[x*+\s]*\d+\s*(?:sec|s)?\s+)?"         # optional exposure
+            r"(VT[_\s-]?[BR])\s+"                                 # band
+            r"(?:[\d.]+\s*[x*+\s]*\d+\s*(?:sec|s)?\s+)?"         # optional exposure after band
+            r"(>?~?\s*)([\d.]+)"                                  # magnitude
+            r"(?:\s*(?:\+/?-|±)\s*[\d.]+)?",
+            ln, re.IGNORECASE,
+        )
+        if m1:
+            band = _norm_band(m1.group(3))
+            t_raw = float(m1.group(1))
+            t_unit = m1.group(2) or ""
+            if not t_unit:
+                if t_raw > 100:
+                    t_unit = "sec"
+                else:
+                    t_unit = "hour"
+            is_limit = ">" in m1.group(4) or is_limit_context
+            val = float(m1.group(5))
+            _add(band, val, _to_hr(t_raw, t_unit), is_limit)
+            continue
+
+    # --- Format 6: text descriptions ---
+    # "VT_R ~20.61 mag(AB) ... mid time of 443 seconds"
+    # "VT_B~15.8 mag(AB) and VT_R~14.2 mag(AB) ... mid time of 461 seconds"
+    if not mags:
+        # find all "VT_x ~val" or "VT_x val" patterns
+        text_mags = list(re.finditer(
+            r"(VT[_\s-]?[BR])\s*~?\s*([\d.]+)\s*(?:mag)?",
+            body, re.IGNORECASE,
+        ))
+        if text_mags:
+            # extract global mid-time
+            t_global = None
+            tm = re.search(r"(?:mid(?:dle)?\s*time(?:\s+of)?|at)\s+([\d.]+)\s*(hour|hr|h|min|sec|s|seconds?|minutes?)", body, re.IGNORECASE)
+            if tm:
+                t_global = _to_hr(float(tm.group(1)), tm.group(2))
+            else:
+                tm2 = re.search(r"([\d.]+)\s*(seconds?|sec|s)\s+(?:after|post)", body, re.IGNORECASE)
+                if tm2:
+                    t_global = _to_hr(float(tm2.group(1)), tm2.group(2))
+            for tm_match in text_mags:
+                band = _norm_band(tm_match.group(1))
+                try:
+                    val = float(tm_match.group(2))
+                except ValueError:
+                    continue
+                _add(band, val, t_global, is_limit_context)
+
     return bands, mags
 
 
@@ -645,6 +944,11 @@ def enrich(circular: dict) -> Optional[dict]:
     exposures = extract_exposure(body)
     event_name = extract_event_name(subject, body, event_id)
     trigger_source = identify_trigger_source(subject, body)
+
+    # Auto-fix is_limit: if report_type is upper_limit, force all mags to is_limit=True
+    if report_type == "upper_limit":
+        for m in mags:
+            m["is_limit"] = True
 
     enriched = dict(circular)
     enriched.update({

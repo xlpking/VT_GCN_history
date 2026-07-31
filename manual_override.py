@@ -64,6 +64,19 @@ def set_override(circular_id, trigger_source: str, note: str = "") -> dict:
     return overrides[key]
 
 
+def set_ul_override(circular_id, report_type: str, comment: str = "") -> dict:
+    """为上限表格中的 GCN 设置 report_type 和 comment。"""
+    overrides = load_overrides()
+    key = str(circular_id)
+    if key not in overrides:
+        overrides[key] = {}
+    overrides[key]["report_type"] = report_type
+    overrides[key]["ul_comment"] = comment.strip()
+    overrides[key]["updated_at"] = datetime.now(timezone.utc).isoformat()
+    save_overrides(overrides)
+    return overrides[key]
+
+
 def apply_overrides(records: dict) -> int:
     """
     将人工覆盖应用到 records dict（原地修改）。
@@ -79,6 +92,16 @@ def apply_overrides(records: dict) -> int:
             ov = overrides[cid]
             if "trigger_source" in ov:
                 rec["trigger_source"] = ov["trigger_source"]
+            if "report_type" in ov:
+                rec["report_type"] = ov["report_type"]
+            if "event_name" in ov:
+                rec["event_name"] = ov["event_name"]
+            if "trigger_to_obs_hr" in ov:
+                rec["trigger_to_obs_hr"] = ov["trigger_to_obs_hr"]
+            if "is_auto_followup" in ov:
+                rec["is_auto_followup"] = ov["is_auto_followup"]
+            if "ul_comment" in ov:
+                rec["ul_comment"] = ov["ul_comment"]
             if "bands" in ov:
                 rec["bands"] = ov["bands"]
             if "magnitudes" in ov:

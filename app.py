@@ -31,6 +31,14 @@ log = logging.getLogger("app")
 app = Flask(__name__)
 store = get_store()
 
+# Serve static figures
+import os as _os
+from flask import send_from_directory as _sfd
+
+@app.route("/doc_figures/<path:filename>")
+def _serve_figures(filename):
+    return _sfd(_os.path.join(_os.path.dirname(__file__), "doc_figures"), filename)
+
 
 # ---------- 后台调度 ----------
 class UpdateScheduler:
@@ -166,6 +174,65 @@ INDEX_TEMPLATE = """<!doctype html>
     <div class="chart-card full">{{ charts.monthly_bar|safe }}</div>
   </div>
 
+  <h3 style="margin-top:30px;margin-bottom:10px">VT_R 光变样本图（灰色：Swift 历史 GRB 密度分布；红/绿：SVOM/VT VT_R 探测/上限；悬停查看 GRB 名称）</h3>
+  <div style="margin-bottom:18px">
+    <div style="width:100%">
+      {{ charts.lc_density_iz|safe }}
+      <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:4px">交互图：Swift i/z 波段密度 + VT_R（悬停显示 GRB 名称）</div>
+    </div>
+    <div style="margin-top:14px">
+      <img src="/doc_figures/lc_density_vs_vt.png" alt="VT_R vs R-band density" style="width:100%;border:1px solid var(--border);border-radius:8px">
+      <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:4px">静态图：Swift R 波段密度 + VT_R（标签标注自动后随上限）</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:30px;margin-bottom:10px">VT 仅提供定位误差的事件（共 {{ ul_events|length }} 个，无光学探测）</h3>
+
+  {% set af_events = ul_events | selectattr('is_auto_followup') | list %}
+  {% set svom_events = ul_events | rejectattr('is_auto_followup') | selectattr('is_svom') | list %}
+  {% set other_events = ul_events | rejectattr('is_svom') | list %}
+
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+  {% macro ul_table(events_list, title, bg) %}
+  <div style="flex:1;min-width:420px;background:{{ bg }};border:1px solid var(--border);border-radius:10px;padding:12px">
+    <div style="font-size:14px;font-weight:600;color:var(--accent);margin-bottom:8px">{{ title }}（{{ events_list|length }}）</div>
+    <table style="font-size:12px">
+      <thead><tr>
+        <th>事件</th><th>GCN</th><th>延时</th><th>上限</th><th>类型</th><th>备注</th>
+      </tr></thead>
+      <tbody>
+      {% for ev in events_list %}
+        <tr>
+          <td>{{ ev.event }}</td>
+          <td class="small">{% for g in ev.gcns %}<a href="https://gcn.nasa.gov/circulars/{{ g }}" target="_blank">{{ g }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</td>
+          <td class="small">{{ '%.2f'|format(ev.delay_hr) if ev.delay_hr is not none else '—' }}h</td>
+          <td class="small">{{ ev.limit_str }}</td>
+          <td>
+            <select id="type_{{ ev.primary_gcn }}" onchange="saveUL({{ ev.primary_gcn }})" style="font-size:11px;padding:2px">
+              <option value="upper_limit" selected>上限</option>
+              <option value="detection">探测</option>
+              <option value="stellar_flare">耀斑</option>
+              <option value="clarification">澄清</option>
+              <option value="other">其他</option>
+            </select>
+          </td>
+          <td>
+            <input id="comment_{{ ev.primary_gcn }}" type="text" placeholder="补充说明..." value="{{ ul_comments.get(ev.primary_gcn, '') }}" style="font-size:11px;width:120px" onchange="saveUL({{ ev.primary_gcn }})">
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="empty">无</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endmacro %}
+
+  {{ ul_table(af_events, 'SVOM 自动后随（≤1h）', 'rgba(34,197,94,.06)') }}
+  {{ ul_table(svom_events, 'SVOM/ECLAIRs 触发（ToO）', 'rgba(59,130,246,.06)') }}
+  {{ ul_table(other_events, '外部卫星触发', 'rgba(168,85,247,.06)') }}
+  </div>
+
   <h3 style="margin-top:30px;margin-bottom:10px">VT 报告列表（共 {{ total }} 条，显示 {{ records|length }} 条）</h3>
   <div class="controls" style="margin-top:0;margin-bottom:10px">
     <input id="q" type="text" placeholder="搜索 Subject / 事件 / 正文..." value="{{ q }}" style="flex:1;min-width:220px"/>
@@ -230,6 +297,7 @@ function applyFilter(){const q=encodeURIComponent(document.getElementById('q').v
 function clearFilter(){window.location='/';}
 function goPage(p){const q=encodeURIComponent(document.getElementById('q').value);const f=document.getElementById('ftype').value;const ps=document.getElementById('ps').value;window.location=`/?q=${q}&ftype=${f}&ps=${ps}&page=${p}`;}
 function triggerUpdate(){fetch('/api/update',{method:'POST'}).then(r=>r.json()).then(d=>{alert(d.message||JSON.stringify(d));setTimeout(()=>location.reload(),1500);}).catch(e=>alert('更新失败: '+e));}
+function saveUL(cid){const t=document.getElementById('type_'+cid).value;const c=(document.getElementById('comment_'+cid)||{}).value||'';fetch('/api/ul_override',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({circularId:cid,report_type:t,comment:c})}).then(r=>r.json()).then(d=>{if(!d.ok)alert(d.message);else setTimeout(()=>location.reload(),800);}).catch(e=>alert('保存失败: '+e));}
 setInterval(()=>location.reload(),{{ interval_min }}*60*1000);
 </script>
 </body>
@@ -276,12 +344,16 @@ def index():
 
     stats = store.stats()
     charts = visualizations.build_all_charts(filtered, stats)
+    ul_events = store.upper_limit_events()
+    ul_comments = store.ul_comments_map()
 
     return render_template_string(
         INDEX_TEMPLATE,
         meta=store.meta(),
         stats=stats,
         charts=charts,
+        ul_events=ul_events,
+        ul_comments=ul_comments,
         records=page_items,
         total=len(filtered),
         q=q, ftype=ftype, pagesize=pagesize, page=page, total_pages=total_pages,
@@ -516,6 +588,34 @@ def api_manual_override():
         return jsonify({"ok": True, "message": f"已保存: GCN {cid} → {ts}"})
     except ValueError as exc:
         return jsonify({"ok": False, "message": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"ok": False, "message": f"保存失败: {exc}"}), 500
+
+
+@app.route("/api/ul_override", methods=["POST"])
+def api_ul_override():
+    """保存上限表格的 report_type 和 comment。"""
+    from manual_override import set_ul_override
+    data = request.get_json(force=True)
+    cid = data.get("circularId")
+    report_type = data.get("report_type", "")
+    comment = data.get("comment", "")
+    if not cid:
+        return jsonify({"ok": False, "message": "缺少 circularId"}), 400
+    if report_type not in ("detection", "upper_limit", "stellar_flare", "clarification", "other"):
+        return jsonify({"ok": False, "message": f"非法 report_type: {report_type}"}), 400
+    try:
+        set_ul_override(cid, report_type, comment)
+        # 即时应用到内存中的记录
+        recs = store.all_records()
+        for r in recs:
+            if r.get("circularId") == int(cid):
+                r["report_type"] = report_type
+                r["ul_comment"] = comment.strip()
+                r["manual_override"] = True
+                break
+        store._save()
+        return jsonify({"ok": True, "message": f"已保存: GCN {cid} → {report_type}"})
     except Exception as exc:
         return jsonify({"ok": False, "message": f"保存失败: {exc}"}), 500
 
